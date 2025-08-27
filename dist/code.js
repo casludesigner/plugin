@@ -1,0 +1,2 @@
+(()=>{"use strict";figma.on("run",()=>{figma.showUI(__html__,{width:340,height:520,themeColors:!0})}),figma.ui.onmessage=e=>{if("create-frame"===e?.type&&e?.payload){const{width:a,height:i,name:t}=e.payload,o=figma.createFrame();o.resizeWithoutConstraints(a,i),o.name=t,figma.currentPage.appendChild(o),figma.viewport.scrollAndZoomIntoView([o])}}})();
+//# sourceMappingURL=code.js.map
