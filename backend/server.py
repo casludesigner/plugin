@@ -102,6 +102,11 @@ def parse_from_mongo(item):
                         pass
     return item
 
+# Add your routes to the router instead of directly to app
+@api_router.get("/")
+async def root():
+    return {"message": "PropBot CRM API is running", "status": "ok"}
+
 # Agent Configuration Routes
 @api_router.post("/agent-config", response_model=AgentConfig)
 async def create_agent_config(config: AgentConfigCreate):
