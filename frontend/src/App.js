@@ -1043,7 +1043,7 @@ const WhatsAppConfig = () => {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="flex-shrink-0 w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-medium">2</span>
-                  Toque em "Mais opções" (⋮) > "Dispositivos conectados"
+                  Toque em "Mais opções" (⋮) → "Dispositivos conectados"
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="flex-shrink-0 w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-medium">3</span>
