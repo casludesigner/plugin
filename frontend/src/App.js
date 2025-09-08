@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./App.css";
 import axios from "axios";
 import { BrowserRouter, Routes, Route, Link, useNavigate } from "react-router-dom";
@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Avatar, AvatarFallback } from "./components/ui/avatar";
 import { Separator } from "./components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./components/ui/dialog";
-import { MessageSquare, Users, TrendingUp, Bot, Settings, BarChart3, UserPlus, Phone, Mail, Calendar, Send, MessageCircle, Search, Filter, Paperclip, Smile, MoreHorizontal, X } from "lucide-react";
+import { Progress } from "./components/ui/progress";
+import { MessageSquare, Users, TrendingUp, Bot, Settings, BarChart3, UserPlus, Phone, Mail, Calendar, Send, MessageCircle, Search, Filter, Paperclip, Smile, MoreHorizontal, X, Upload, FileText, Trash2, CheckCircle, AlertCircle, Clock } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -187,6 +188,261 @@ const Dashboard = () => {
   );
 };
 
+// Document Upload Component
+const DocumentUpload = ({ onDocumentsUpdate }) => {
+  const [documents, setDocuments] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [training, setTraining] = useState(false);
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, []);
+
+  const fetchDocuments = async () => {
+    try {
+      const response = await axios.get(`${API}/training-documents`);
+      setDocuments(response.data);
+      if (onDocumentsUpdate) {
+        onDocumentsUpdate(response.data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar documentos:', error);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const files = Array.from(e.dataTransfer.files);
+    uploadFiles(files);
+  };
+
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files);
+    uploadFiles(files);
+  };
+
+  const uploadFiles = async (files) => {
+    setUploading(true);
+    
+    for (const file of files) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await axios.post(`${API}/training-documents/upload`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        
+        toast.success(`${file.name} enviado com sucesso!`);
+        
+      } catch (error) {
+        console.error('Erro ao enviar arquivo:', error);
+        toast.error(`Erro ao enviar ${file.name}: ${error.response?.data?.detail || 'Erro desconhecido'}`);
+      }
+    }
+    
+    setUploading(false);
+    fetchDocuments();
+  };
+
+  const deleteDocument = async (docId) => {
+    try {
+      await axios.delete(`${API}/training-documents/${docId}`);
+      toast.success('Documento removido com sucesso!');
+      fetchDocuments();
+    } catch (error) {
+      console.error('Erro ao remover documento:', error);
+      toast.error('Erro ao remover documento');
+    }
+  };
+
+  const trainAI = async () => {
+    setTraining(true);
+    try {
+      const response = await axios.post(`${API}/training-documents/train-ai`);
+      toast.success(response.data.message);
+    } catch (error) {
+      console.error('Erro ao treinar IA:', error);
+      toast.error(error.response?.data?.detail || 'Erro ao treinar IA');
+    } finally {
+      setTraining(false);
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'processando':
+        return <Clock className="h-4 w-4 text-yellow-600" />;
+      case 'treinado':
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'erro':
+        return <AlertCircle className="h-4 w-4 text-red-600" />;
+      default:
+        return <FileText className="h-4 w-4 text-gray-600" />;
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'processando':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'treinado':
+        return 'bg-green-100 text-green-800';
+      case 'erro':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const trainedDocuments = documents.filter(doc => doc.status === 'treinado');
+
+  return (
+    <div className="space-y-6">
+      {/* Upload Area */}
+      <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-indigo-900">
+            <Upload className="h-5 w-5" />
+            Adicionar Documentos
+          </CardTitle>
+          <CardDescription className="text-indigo-700">
+            Envie arquivos para que a IA aprenda sobre seus imóveis e empresa
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+              dragOver
+                ? 'border-indigo-400 bg-indigo-50'
+                : 'border-indigo-200 hover:border-indigo-300 hover:bg-indigo-50'
+            }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <Upload className="h-12 w-12 text-indigo-400 mx-auto mb-4" />
+            <p className="text-lg font-medium text-indigo-900 mb-2">
+              Arraste arquivos aqui ou clique para selecionar
+            </p>
+            <p className="text-sm text-indigo-600 mb-4">
+              Tipos aceitos: PDF, XML, CSV, XLSX, TXT, DOCX
+            </p>
+            <p className="text-xs text-indigo-500 mb-4">
+              Você pode enviar planilhas de imóveis, PDFs institucionais ou catálogos de produtos
+            </p>
+            <Button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
+              {uploading ? 'Enviando...' : 'Selecionar Arquivos'}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.xml,.csv,.xlsx,.txt,.docx"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+          </div>
+          <p className="text-xs text-indigo-500 mt-2">
+            Limite: 10MB por arquivo
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Documents List */}
+      {documents.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Documentos Enviados
+            </CardTitle>
+            <CardDescription>
+              {documents.length} documento(s) • {trainedDocuments.length} treinado(s)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {documents.map((doc) => (
+                <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    {getStatusIcon(doc.status)}
+                    <div>
+                      <p className="font-medium text-gray-900">{doc.original_name}</p>
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <span>{doc.file_type.toUpperCase()}</span>
+                        <span>{formatFileSize(doc.file_size)}</span>
+                        <span>{new Date(doc.upload_date).toLocaleDateString('pt-BR')}</span>
+                      </div>
+                      {doc.error_message && (
+                        <p className="text-xs text-red-600 mt-1">{doc.error_message}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge className={getStatusColor(doc.status)}>
+                      {doc.status === 'processando' && 'Processando'}
+                      {doc.status === 'treinado' && 'Treinado'}
+                      {doc.status === 'erro' && 'Erro'}
+                    </Badge>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => deleteDocument(doc.id)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {trainedDocuments.length > 0 && (
+              <div className="mt-6 pt-4 border-t">
+                <Button
+                  onClick={trainAI}
+                  disabled={training}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {training ? 'Treinando IA...' : `Treinar IA com ${trainedDocuments.length} Documento(s)`}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
 // Agent Configuration Component
 const AgentConfig = () => {
   const [config, setConfig] = useState({
@@ -197,6 +453,7 @@ const AgentConfig = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newStep, setNewStep] = useState("");
+  const [activeTab, setActiveTab] = useState("personality");
 
   useEffect(() => {
     fetchConfig();
@@ -257,86 +514,120 @@ const AgentConfig = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8">
       <div>
         <h1 className="text-4xl font-bold text-gray-900 mb-2">Configuração do Agente IA</h1>
         <p className="text-lg text-gray-600">Personalize o comportamento do seu assistente virtual</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bot className="h-5 w-5" />
-            Personalidade do Agente
-          </CardTitle>
-          <CardDescription>Defina como seu agente IA deve se comportar</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="name">Nome do Agente</Label>
-            <Input
-              id="name"
-              placeholder="Ex: Maria - Consultora Imobiliária"
-              value={config.name}
-              onChange={(e) => setConfig({...config, name: e.target.value})}
-            />
-          </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="personality" className="flex items-center gap-2">
+            <Bot className="h-4 w-4" />
+            Personalidade
+          </TabsTrigger>
+          <TabsTrigger value="script" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Roteiro
+          </TabsTrigger>
+          <TabsTrigger value="documents" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Documentos
+          </TabsTrigger>
+        </TabsList>
 
-          <div className="space-y-2">
-            <Label htmlFor="behavior">Comportamento</Label>
-            <Textarea
-              id="behavior"
-              placeholder="Descreva como o agente deve se comportar (tom, estilo, abordagem)"
-              value={config.behavior}
-              onChange={(e) => setConfig({...config, behavior: e.target.value})}
-              rows={4}
-            />
-          </div>
-        </CardContent>
-      </Card>
+        <TabsContent value="personality" className="space-y-6">
+          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-900">
+                <Bot className="h-5 w-5" />
+                Personalidade do Agente
+              </CardTitle>
+              <CardDescription className="text-blue-700">
+                Defina como seu agente IA deve se comportar e interagir com os clientes
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="name" className="text-blue-900 font-medium">Nome do Agente</Label>
+                <Input
+                  id="name"
+                  placeholder="Ex: Maria - Consultora Imobiliária"
+                  value={config.name}
+                  onChange={(e) => setConfig({...config, name: e.target.value})}
+                  className="border-blue-200 focus:border-blue-400"
+                />
+              </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5" />
-            Roteiro de Atendimento
-          </CardTitle>
-          <CardDescription>Defina os passos que o agente deve seguir</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            {config.script.map((step, index) => (
-              <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-sm font-medium">
-                  {index + 1}
-                </span>
-                <span className="flex-1">{step}</span>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => removeStep(index)}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                >
-                  Remover
+              <div className="space-y-2">
+                <Label htmlFor="behavior" className="text-blue-900 font-medium">Comportamento</Label>
+                <Textarea
+                  id="behavior"
+                  placeholder="Descreva como o agente deve se comportar (tom, estilo, abordagem)"
+                  value={config.behavior}
+                  onChange={(e) => setConfig({...config, behavior: e.target.value})}
+                  rows={4}
+                  className="border-blue-200 focus:border-blue-400"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="script" className="space-y-6">
+          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-purple-900">
+                <Settings className="h-5 w-5" />
+                Roteiro de Atendimento
+              </CardTitle>
+              <CardDescription className="text-purple-700">
+                Defina os passos que o agente deve seguir durante o atendimento
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                {config.script.map((step, index) => (
+                  <div key={index} className="flex items-center gap-3 p-4 bg-white rounded-lg border border-purple-200">
+                    <span className="flex-shrink-0 w-8 h-8 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center text-sm font-medium">
+                      {index + 1}
+                    </span>
+                    <span className="flex-1 text-gray-900">{step}</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => removeStep(index)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Novo passo do roteiro"
+                  value={newStep}
+                  onChange={(e) => setNewStep(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && addStep()}
+                  className="border-purple-200 focus:border-purple-400"
+                />
+                <Button onClick={addStep} className="bg-purple-600 hover:bg-purple-700">
+                  Adicionar
                 </Button>
               </div>
-            ))}
-          </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-          <div className="flex gap-2">
-            <Input
-              placeholder="Novo passo do roteiro"
-              value={newStep}
-              onChange={(e) => setNewStep(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && addStep()}
-            />
-            <Button onClick={addStep}>Adicionar</Button>
-          </div>
-        </CardContent>
-      </Card>
+        <TabsContent value="documents" className="space-y-6">
+          <DocumentUpload />
+        </TabsContent>
+      </Tabs>
 
       <div className="flex justify-end">
-        <Button onClick={saveConfig} disabled={saving} size="lg">
+        <Button onClick={saveConfig} disabled={saving} size="lg" className="bg-green-600 hover:bg-green-700">
           {saving ? 'Salvando...' : 'Salvar Configurações'}
         </Button>
       </div>

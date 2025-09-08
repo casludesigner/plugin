@@ -49,6 +49,27 @@ class AgentConfigCreate(BaseModel):
     behavior: str
     script: List[str]
 
+class TrainingDocument(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    filename: str
+    original_name: str
+    file_type: str
+    file_size: int
+    status: str = "processando"  # processando, treinado, erro
+    upload_date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    content: Optional[str] = None
+    error_message: Optional[str] = None
+
+class TrainingDocumentResponse(BaseModel):
+    id: str
+    filename: str
+    original_name: str
+    file_type: str
+    file_size: int
+    status: str
+    upload_date: datetime
+    error_message: Optional[str] = None
+
 class Lead(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
@@ -123,13 +144,16 @@ def prepare_for_mongo(data):
 def parse_from_mongo(item):
     if isinstance(item, dict):
         for key, value in item.items():
-            if key.endswith('_at') or key == 'timestamp' or key == 'last_message_time':
+            if key.endswith('_at') or key == 'timestamp' or key == 'last_message_time' or key == 'upload_date':
                 if isinstance(value, str):
                     try:
                         item[key] = datetime.fromisoformat(value.replace('Z', '+00:00'))
                     except:
                         pass
     return item
+
+def get_file_size_mb(size_bytes):
+    return round(size_bytes / (1024 * 1024), 2)
 
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
@@ -164,6 +188,122 @@ async def update_agent_config(config_id: str, config: AgentConfigCreate):
     agent_data = prepare_for_mongo(agent_obj.dict())
     await db.agent_configs.replace_one({"id": config_id}, agent_data)
     return agent_obj
+
+# Training Documents Routes
+@api_router.post("/training-documents/upload", response_model=TrainingDocumentResponse)
+async def upload_training_document(file: UploadFile = File(...)):
+    # Validate file type
+    allowed_extensions = ['.pdf', '.xml', '.csv', '.xlsx', '.txt', '.docx']
+    file_extension = Path(file.filename).suffix.lower()
+    
+    if file_extension not in allowed_extensions:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Tipo de arquivo não suportado. Tipos aceitos: {', '.join(allowed_extensions)}"
+        )
+    
+    # Check file size (10MB limit)
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:  # 10MB
+        raise HTTPException(status_code=400, detail="Arquivo muito grande. Limite: 10MB")
+    
+    try:
+        # Create document record
+        doc = TrainingDocument(
+            filename=f"{uuid.uuid4()}{file_extension}",
+            original_name=file.filename,
+            file_type=file_extension,
+            file_size=len(content),
+            status="processando"
+        )
+        
+        # Save to database
+        doc_data = prepare_for_mongo(doc.dict())
+        await db.training_documents.insert_one(doc_data)
+        
+        # Simulate processing (in real implementation, this would process the file)
+        try:
+            # Try to decode content for text files
+            if file_extension in ['.txt', '.csv', '.xml']:
+                text_content = content.decode('utf-8')
+                doc.content = text_content[:1000]  # Store first 1000 chars
+            
+            # Update status to trained
+            await db.training_documents.update_one(
+                {"id": doc.id},
+                {"$set": {"status": "treinado", "content": doc.content}}
+            )
+            doc.status = "treinado"
+            
+        except Exception as e:
+            # Update status to error
+            error_msg = f"Erro ao processar arquivo: {str(e)}"
+            await db.training_documents.update_one(
+                {"id": doc.id},
+                {"$set": {"status": "erro", "error_message": error_msg}}
+            )
+            doc.status = "erro"
+            doc.error_message = error_msg
+        
+        return TrainingDocumentResponse(**doc.dict())
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+
+@api_router.get("/training-documents", response_model=List[TrainingDocumentResponse])
+async def get_training_documents():
+    documents = await db.training_documents.find().sort("upload_date", -1).to_list(100)
+    return [TrainingDocumentResponse(**parse_from_mongo(doc)) for doc in documents]
+
+@api_router.delete("/training-documents/{doc_id}")
+async def delete_training_document(doc_id: str):
+    result = await db.training_documents.delete_one({"id": doc_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+    return {"message": "Documento removido com sucesso"}
+
+@api_router.post("/training-documents/train-ai")
+async def train_ai_with_documents():
+    # Get all trained documents
+    documents = await db.training_documents.find({"status": "treinado"}).to_list(100)
+    
+    if not documents:
+        raise HTTPException(status_code=400, detail="Nenhum documento treinado disponível")
+    
+    # Simulate AI training process
+    try:
+        # In real implementation, this would:
+        # 1. Process all documents
+        # 2. Extract relevant information
+        # 3. Update the AI knowledge base
+        # 4. Update agent configuration
+        
+        # Get current agent config
+        config = await db.agent_configs.find_one({}, sort=[("created_at", -1)])
+        if config:
+            # Add document info to knowledge base
+            knowledge_items = []
+            for doc in documents:
+                knowledge_items.append({
+                    "source": doc.get("original_name"),
+                    "type": doc.get("file_type"),
+                    "content_preview": doc.get("content", "")[:200] if doc.get("content") else "",
+                    "processed_at": datetime.now(timezone.utc).isoformat()
+                })
+            
+            # Update agent config with new knowledge
+            await db.agent_configs.update_one(
+                {"id": config.get("id")},
+                {"$set": {"knowledge_base": knowledge_items}}
+            )
+        
+        return {
+            "message": f"IA treinada com sucesso usando {len(documents)} documentos",
+            "documents_count": len(documents)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao treinar IA: {str(e)}")
 
 # Lead Management Routes
 @api_router.post("/leads", response_model=Lead)
@@ -253,6 +393,14 @@ async def get_ai_response(lead_id: str, request_body: dict):
         recent_messages = await db.messages.find({"lead_id": lead_id}).sort("timestamp", -1).limit(10).to_list(10)
         recent_messages.reverse()  # Put in chronological order
         
+        # Build context with knowledge base
+        knowledge_context = ""
+        if config.get('knowledge_base'):
+            knowledge_context = "\n\nConhecimento da empresa:\n"
+            for item in config.get('knowledge_base', []):
+                if isinstance(item, dict):
+                    knowledge_context += f"- {item.get('source', '')}: {item.get('content_preview', '')}\n"
+        
         # Build context
         context = f"""Você é um {config.get('name', 'Agente Imobiliário')} com o seguinte comportamento: {config.get('behavior', 'Profissional e cordial')}.
 
@@ -264,10 +412,12 @@ Informações do cliente:
 - Telefone: {lead.get('phone')}
 - Status: {lead.get('status')}
 
+{knowledge_context}
+
 Histórico da conversa:
 {chr(10).join([f"{msg.get('sender', 'desconhecido')}: {msg.get('message', '')}" for msg in recent_messages[-5:]])}
 
-Responda de forma natural, seguindo seu roteiro e comportamento. Seja objetivo e útil."""
+Responda de forma natural, seguindo seu roteiro e comportamento. Use as informações da empresa quando relevante. Seja objetivo e útil."""
 
         # Initialize chat with Gemini 2.5 Pro
         chat = LlmChat(
@@ -407,7 +557,7 @@ async def get_reports():
         response_rate=round(response_rate, 1)
     )
 
-# Upload Knowledge Base
+# Upload Knowledge Base (Legacy - keeping for compatibility)
 @api_router.post("/upload-knowledge")
 async def upload_knowledge(file: UploadFile = File(...)):
     try:
