@@ -630,6 +630,74 @@ const AgentConfig = () => {
         <TabsContent value="documents" className="space-y-6">
           <DocumentUpload />
         </TabsContent>
+
+        <TabsContent value="advanced" className="space-y-6">
+          <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-emerald-900">
+                <Bot className="h-5 w-5" />
+                Agente de IA Avançado (N8N)
+              </CardTitle>
+              <CardDescription className="text-emerald-700">
+                Configure um agente mais inteligente usando workflows visuais
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="useAdvancedAgent"
+                  checked={config.useAdvancedAgent}
+                  onChange={(e) => setConfig({...config, useAdvancedAgent: e.target.checked})}
+                  className="rounded border-emerald-300"
+                />
+                <Label htmlFor="useAdvancedAgent" className="text-emerald-900 font-medium">
+                  Usar Agente IA Avançado (N8N)
+                </Label>
+              </div>
+
+              {config.useAdvancedAgent && (
+                <div className="space-y-4 p-4 bg-white rounded-lg border border-emerald-200">
+                  <div className="space-y-2">
+                    <Label htmlFor="n8nWebhook" className="text-emerald-900 font-medium">
+                      URL do Webhook N8N
+                    </Label>
+                    <Input
+                      id="n8nWebhook"
+                      placeholder="https://sua-instancia-n8n.com/webhook/propbot-agent"
+                      value={config.n8nWebhookUrl}
+                      onChange={(e) => setConfig({...config, n8nWebhookUrl: e.target.value})}
+                      className="border-emerald-200 focus:border-emerald-400"
+                    />
+                  </div>
+
+                  <div className="bg-emerald-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-emerald-900 mb-2">Recursos do Agente Avançado:</h4>
+                    <ul className="space-y-1 text-sm text-emerald-700">
+                      <li>✅ Classificação inteligente de intenções</li>
+                      <li>✅ Busca automática em banco de imóveis</li>
+                      <li>✅ Agendamento de visitas integrado</li>
+                      <li>✅ Negociação de preços assistida</li>
+                      <li>✅ Múltiplas IAs (GPT-4, Claude, Gemini)</li>
+                      <li>✅ Workflows personalizáveis</li>
+                    </ul>
+                  </div>
+
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-blue-900 mb-2">Como configurar N8N:</h4>
+                    <ol className="space-y-1 text-sm text-blue-700">
+                      <li>1. Instale N8N: <code className="bg-blue-100 px-2 py-1 rounded">docker run -p 5678:5678 n8nio/n8n</code></li>
+                      <li>2. Acesse: http://localhost:5678</li>
+                      <li>3. Importe o template de workflow do PropBot</li>
+                      <li>4. Configure suas chaves de API (OpenAI, etc)</li>
+                      <li>5. Ative o webhook e cole a URL acima</li>
+                    </ol>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       <div className="flex justify-end">
