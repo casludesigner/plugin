@@ -1860,6 +1860,9 @@ const Navigation = () => {
             <Link to="/live-chat" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
               Chat ao Vivo
             </Link>
+            <Link to="/whatsapp-config" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+              WhatsApp
+            </Link>
             <Link to="/reports" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
               Relatórios
             </Link>
