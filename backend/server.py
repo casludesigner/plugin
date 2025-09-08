@@ -600,6 +600,8 @@ async def send_message_to_whatsapp(request_body: dict):
     except Exception as e:
         logging.error(f"Error in send_message_to_whatsapp: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+@api_router.post("/whatsapp/disconnect")
+async def disconnect_whatsapp():
     """
     Desconecta WhatsApp
     """
@@ -619,6 +621,107 @@ async def send_message_to_whatsapp(request_body: dict):
     except Exception as e:
         logging.error(f"Error disconnecting WhatsApp: {str(e)}")
         return {"status": "error", "message": str(e)}
+
+# N8N Integration Routes
+@api_router.post("/n8n/webhook")
+async def n8n_webhook(request_body: dict):
+    """
+    Endpoint para receber respostas do n8n
+    """
+    try:
+        lead_id = request_body.get('lead_id')
+        message = request_body.get('message')
+        action = request_body.get('action', 'send_message')
+        
+        if action == 'send_message' and lead_id and message:
+            # Send message back to WhatsApp
+            await send_whatsapp_message(lead_id, message)
+            
+            # Save as agent message
+            agent_message = ChatMessage(
+                lead_id=lead_id,
+                sender='agent',
+                sender_name='IA Avançada',
+                message=message,
+                channel='whatsapp'
+            )
+            message_data = prepare_for_mongo(agent_message.dict())
+            await db.messages.insert_one(message_data)
+            
+            return {"status": "success"}
+        
+        elif action == 'update_lead':
+            # Update lead information
+            lead_updates = request_body.get('lead_updates', {})
+            await db.leads.update_one(
+                {"id": lead_id},
+                {"$set": lead_updates}
+            )
+            return {"status": "lead_updated"}
+            
+        elif action == 'schedule_visit':
+            # Handle visit scheduling
+            visit_data = request_body.get('visit_data', {})
+            # Implement scheduling logic here
+            return {"status": "visit_scheduled"}
+            
+        return {"status": "unknown_action"}
+        
+    except Exception as e:
+        logging.error(f"N8N webhook error: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+@api_router.post("/n8n/send-to-agent")
+async def send_to_n8n_agent(request_body: dict):
+    """
+    Envia mensagem para processamento avançado no n8n
+    """
+    try:
+        import requests
+        
+        lead_id = request_body.get('lead_id')
+        message = request_body.get('message')
+        
+        # Get lead context
+        lead = await db.leads.find_one({"id": lead_id})
+        if not lead:
+            raise HTTPException(status_code=404, detail="Lead não encontrado")
+        
+        # Get recent conversation history
+        recent_messages = await db.messages.find({"lead_id": lead_id}).sort("timestamp", -1).limit(5).to_list(5)
+        recent_messages.reverse()
+        
+        # Prepare context for n8n
+        context = {
+            "lead_id": lead_id,
+            "lead_info": {
+                "name": lead.get("name"),
+                "phone": lead.get("phone"),
+                "email": lead.get("email"),
+                "status": lead.get("status"),
+                "tags": lead.get("tags", []),
+                "notes": lead.get("notes", "")
+            },
+            "message": message,
+            "conversation_history": [
+                {
+                    "sender": msg.get("sender"),
+                    "message": msg.get("message"),
+                    "timestamp": msg.get("timestamp")
+                } for msg in recent_messages
+            ],
+            "webhook_url": "https://propbot-mvp.preview.emergentagent.com/api/n8n/webhook"
+        }
+        
+        # Send to n8n webhook (you'll configure this URL)
+        n8n_webhook_url = "https://your-n8n-instance.com/webhook/propbot-agent"
+        
+        # For now, return the context that would be sent
+        return {"status": "ready_for_n8n", "context": context}
+        
+    except Exception as e:
+        logging.error(f"Error preparing for n8n: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Reports Routes
 @api_router.get("/reports", response_model=Report)
