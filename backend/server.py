@@ -702,6 +702,15 @@ async def whatsapp_webhook(request_body: dict):
         logging.error(f"WhatsApp webhook error: {str(e)}")
         return {"status": "error", "message": str(e)}
 
+# Catch all webhook variations
+@api_router.post("/whatsapp/webhook/{path:path}")
+async def whatsapp_webhook_catchall(path: str, request_body: dict):
+    """
+    Catch all webhook variations from Evolution API
+    """
+    logging.info(f"WhatsApp webhook catchall for path: {path}")
+    return await whatsapp_webhook(request_body)
+
 async def process_whatsapp_message(phone: str, text: str, message_id: str):
     """
     Processa mensagem recebida do WhatsApp
