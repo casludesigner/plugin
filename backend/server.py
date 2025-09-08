@@ -519,7 +519,7 @@ async def get_whatsapp_qr():
         
         # Call Evolution API to get QR code
         response = requests.get(
-            "https://api.airys.com.br/instance/connect/propbot",
+            "https://api.airys.com.br/instance/connect/propbot-new",
             headers={"apikey": "4bb4d6a9f91c3b16342a251cba010a9c"}
         )
         
