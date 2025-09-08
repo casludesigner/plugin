@@ -14,7 +14,8 @@ import { Avatar, AvatarFallback } from "./components/ui/avatar";
 import { Separator } from "./components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./components/ui/dialog";
 import { Progress } from "./components/ui/progress";
-import { MessageSquare, Users, TrendingUp, Bot, Settings, BarChart3, UserPlus, Phone, Mail, Calendar, Send, MessageCircle, Search, Filter, Paperclip, Smile, MoreHorizontal, X, Upload, FileText, Trash2, CheckCircle, AlertCircle, Clock, Wifi, WifiOff, RefreshCw, QrCode } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./components/ui/table";
+import { MessageSquare, Users, TrendingUp, Bot, Settings, BarChart3, UserPlus, Phone, Mail, Calendar, Send, MessageCircle, Search, Filter, Paperclip, Smile, MoreHorizontal, X, Upload, FileText, Trash2, CheckCircle, AlertCircle, Clock, Wifi, WifiOff, RefreshCw, QrCode, Building2, Shield, Edit, Eye, UserCheck, Crown } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
