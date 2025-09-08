@@ -1454,6 +1454,9 @@ const SuperAdmin = () => {
     </div>
   );
 };
+
+// WhatsApp Configuration Component
+const WhatsAppConfig = () => {
   const [whatsappStatus, setWhatsappStatus] = useState({
     connected: false,
     connection_status: 'close',
