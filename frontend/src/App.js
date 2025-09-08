@@ -448,7 +448,9 @@ const AgentConfig = () => {
   const [config, setConfig] = useState({
     name: "",
     behavior: "",
-    script: []
+    script: [],
+    useAdvancedAgent: false,
+    n8nWebhookUrl: ""
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
