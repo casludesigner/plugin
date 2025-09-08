@@ -890,8 +890,570 @@ const CRM = () => {
   );
 };
 
-// WhatsApp Configuration Component
-const WhatsAppConfig = () => {
+// Super Admin Component
+const SuperAdmin = () => {
+  const [stats, setStats] = useState({
+    total_companies: 0,
+    active_companies: 0,
+    total_users: 0,
+    total_leads: 0,
+    companies_by_plan: {}
+  });
+  const [companies, setCompanies] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState(null);
+  const [companyUsers, setCompanyUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateCompany, setShowCreateCompany] = useState(false);
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [newCompany, setNewCompany] = useState({
+    name: '',
+    cnpj: '',
+    email: '',
+    phone: '',
+    plan: 'basic'
+  });
+  const [newUser, setNewUser] = useState({
+    name: '',
+    email: '',
+    role: 'colaborador'
+  });
+  const [activeTab, setActiveTab] = useState("companies");
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [statsRes, companiesRes] = await Promise.all([
+        axios.get(`${API}/super-admin/stats`),
+        axios.get(`${API}/super-admin/companies`)
+      ]);
+      setStats(statsRes.data);
+      setCompanies(companiesRes.data);
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      toast.error('Erro ao carregar dados do painel');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createCompany = async () => {
+    try {
+      await axios.post(`${API}/super-admin/companies`, newCompany);
+      setNewCompany({ name: '', cnpj: '', email: '', phone: '', plan: 'basic' });
+      setShowCreateCompany(false);
+      fetchData();
+      toast.success('Empresa criada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao criar empresa:', error);
+      toast.error('Erro ao criar empresa');
+    }
+  };
+
+  const updateCompanyStatus = async (companyId, status) => {
+    try {
+      await axios.put(`${API}/super-admin/companies/${companyId}/status?status=${status}`);
+      fetchData();
+      toast.success(`Status alterado para ${status}`);
+    } catch (error) {
+      console.error('Erro ao alterar status:', error);
+      toast.error('Erro ao alterar status');
+    }
+  };
+
+  const fetchCompanyUsers = async (companyId) => {
+    try {
+      const response = await axios.get(`${API}/super-admin/companies/${companyId}/users`);
+      setCompanyUsers(response.data);
+    } catch (error) {
+      console.error('Erro ao carregar usuários:', error);
+      toast.error('Erro ao carregar usuários');
+    }
+  };
+
+  const createUser = async () => {
+    if (!selectedCompany) return;
+    
+    try {
+      await axios.post(`${API}/super-admin/users`, {
+        ...newUser,
+        company_id: selectedCompany.id
+      });
+      setNewUser({ name: '', email: '', role: 'colaborador' });
+      setShowCreateUser(false);
+      fetchCompanyUsers(selectedCompany.id);
+      toast.success('Usuário criado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao criar usuário:', error);
+      toast.error(error.response?.data?.detail || 'Erro ao criar usuário');
+    }
+  };
+
+  const updateUserRole = async (userId, role) => {
+    try {
+      await axios.put(`${API}/super-admin/users/${userId}/role?role=${role}`);
+      fetchCompanyUsers(selectedCompany.id);
+      toast.success(`Papel alterado para ${role}`);
+    } catch (error) {
+      console.error('Erro ao alterar papel:', error);
+      toast.error('Erro ao alterar papel');
+    }
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      ativa: "bg-green-100 text-green-800",
+      inativa: "bg-red-100 text-red-800",
+      suspensa: "bg-yellow-100 text-yellow-800"
+    };
+    return colors[status] || "bg-gray-100 text-gray-800";
+  };
+
+  const getPlanColor = (plan) => {
+    const colors = {
+      basic: "bg-blue-100 text-blue-800",
+      premium: "bg-purple-100 text-purple-800",
+      enterprise: "bg-orange-100 text-orange-800"
+    };
+    return colors[plan] || "bg-gray-100 text-gray-800";
+  };
+
+  const getRoleColor = (role) => {
+    const colors = {
+      superadmin: "bg-red-100 text-red-800",
+      admin: "bg-orange-100 text-orange-800",
+      gestor: "bg-purple-100 text-purple-800",
+      colaborador: "bg-blue-100 text-blue-800"
+    };
+    return colors[role] || "bg-gray-100 text-gray-800";
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="text-center space-y-4">
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <Crown className="h-10 w-10 text-yellow-600" />
+          <h1 className="text-4xl font-bold text-gray-900">Administração de Empresas</h1>
+        </div>
+        <p className="text-lg text-gray-600">Gerencie múltiplas contas em um só lugar</p>
+        <Button 
+          onClick={() => setShowCreateCompany(true)}
+          className="bg-green-600 hover:bg-green-700"
+          size="lg"
+        >
+          <Building2 className="h-5 w-5 mr-2" />
+          Criar Nova Empresa
+        </Button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-blue-700">Total Empresas</CardTitle>
+            <Building2 className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-900">{stats.total_companies}</div>
+            <p className="text-xs text-blue-600">{stats.active_companies} ativas</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-green-700">Total Usuários</CardTitle>
+            <Users className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-900">{stats.total_users}</div>
+            <p className="text-xs text-green-600">usuários cadastrados</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-purple-700">Total Leads</CardTitle>
+            <TrendingUp className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-900">{stats.total_leads}</div>
+            <p className="text-xs text-purple-600">em todas empresas</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-orange-700">Planos</CardTitle>
+            <Crown className="h-4 w-4 text-orange-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs">
+                <span className="text-orange-700">Basic: {stats.companies_by_plan.basic || 0}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-orange-700">Premium: {stats.companies_by_plan.premium || 0}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-orange-700">Enterprise: {stats.companies_by_plan.enterprise || 0}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Content */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="companies" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Empresas
+          </TabsTrigger>
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Gestão de Usuários
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="companies" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Lista de Empresas
+              </CardTitle>
+              <CardDescription>Gerencie todas as empresas cadastradas</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome da Empresa</TableHead>
+                      <TableHead>CNPJ</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Plano</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Criada em</TableHead>
+                      <TableHead>Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {companies.map((company) => (
+                      <TableRow key={company.id}>
+                        <TableCell className="font-medium">{company.name}</TableCell>
+                        <TableCell>{company.cnpj || '-'}</TableCell>
+                        <TableCell>{company.email}</TableCell>
+                        <TableCell>
+                          <Badge className={getPlanColor(company.plan)}>
+                            {company.plan}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(company.status)}>
+                            {company.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {new Date(company.created_at).toLocaleDateString('pt-BR')}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedCompany(company);
+                                fetchCompanyUsers(company.id);
+                                setActiveTab("users");
+                              }}
+                            >
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                            <Select onValueChange={(status) => updateCompanyStatus(company.id, status)}>
+                              <SelectTrigger className="w-32 h-8">
+                                <SelectValue placeholder="Status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="ativa">Ativar</SelectItem>
+                                <SelectItem value="inativa">Inativar</SelectItem>
+                                <SelectItem value="suspensa">Suspender</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="users" className="space-y-6">
+          {selectedCompany ? (
+            <>
+              <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-indigo-900">
+                    <Building2 className="h-5 w-5" />
+                    {selectedCompany.name}
+                  </CardTitle>
+                  <CardDescription className="text-indigo-700">
+                    Gerencie usuários desta empresa
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex justify-between items-center">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm text-indigo-700">Status</p>
+                        <Badge className={getStatusColor(selectedCompany.status)}>
+                          {selectedCompany.status}
+                        </Badge>
+                      </div>
+                      <div>
+                        <p className="text-sm text-indigo-700">Plano</p>
+                        <Badge className={getPlanColor(selectedCompany.plan)}>
+                          {selectedCompany.plan}
+                        </Badge>
+                      </div>
+                      <div>
+                        <p className="text-sm text-indigo-700">Usuários</p>
+                        <p className="font-semibold text-indigo-900">
+                          {companyUsers.length}/{selectedCompany.limits?.max_users || 5}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => setShowCreateUser(true)}
+                      className="bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Adicionar Usuário
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Usuários da Empresa</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Função</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Último Login</TableHead>
+                          <TableHead>Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {companyUsers.map((user) => (
+                          <TableRow key={user.id}>
+                            <TableCell className="font-medium">{user.name}</TableCell>
+                            <TableCell>{user.email}</TableCell>
+                            <TableCell>
+                              <Badge className={getRoleColor(user.role)}>
+                                {user.role}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={user.status === 'ativo' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                                {user.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {user.last_login ? new Date(user.last_login).toLocaleDateString('pt-BR') : 'Nunca'}
+                            </TableCell>
+                            <TableCell>
+                              <Select onValueChange={(role) => updateUserRole(user.id, role)}>
+                                <SelectTrigger className="w-32 h-8">
+                                  <SelectValue placeholder="Função" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="colaborador">Colaborador</SelectItem>
+                                  <SelectItem value="gestor">Gestor</SelectItem>
+                                  <SelectItem value="admin">Admin</SelectItem>
+                                  <SelectItem value="superadmin">Super Admin</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Selecione uma empresa</h3>
+                <p className="text-gray-500">Escolha uma empresa da lista para gerenciar seus usuários</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Create Company Dialog */}
+      <Dialog open={showCreateCompany} onOpenChange={setShowCreateCompany}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Nova Empresa</DialogTitle>
+            <DialogDescription>
+              Preencha os dados da nova empresa
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="companyName">Nome da Empresa</Label>
+              <Input
+                id="companyName"
+                placeholder="Nome da empresa"
+                value={newCompany.name}
+                onChange={(e) => setNewCompany({...newCompany, name: e.target.value})}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="companyCnpj">CNPJ</Label>
+              <Input
+                id="companyCnpj"
+                placeholder="00.000.000/0000-00"
+                value={newCompany.cnpj}
+                onChange={(e) => setNewCompany({...newCompany, cnpj: e.target.value})}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="companyEmail">Email</Label>
+              <Input
+                id="companyEmail"
+                type="email"
+                placeholder="contato@empresa.com"
+                value={newCompany.email}
+                onChange={(e) => setNewCompany({...newCompany, email: e.target.value})}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="companyPhone">Telefone</Label>
+              <Input
+                id="companyPhone"
+                placeholder="(11) 99999-9999"
+                value={newCompany.phone}
+                onChange={(e) => setNewCompany({...newCompany, phone: e.target.value})}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="companyPlan">Plano</Label>
+              <Select value={newCompany.plan} onValueChange={(plan) => setNewCompany({...newCompany, plan})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o plano" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="basic">Basic</SelectItem>
+                  <SelectItem value="premium">Premium</SelectItem>
+                  <SelectItem value="enterprise">Enterprise</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex gap-2 pt-4">
+              <Button onClick={createCompany} className="flex-1">
+                Criar Empresa
+              </Button>
+              <Button variant="outline" onClick={() => setShowCreateCompany(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create User Dialog */}
+      <Dialog open={showCreateUser} onOpenChange={setShowCreateUser}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar Usuário</DialogTitle>
+            <DialogDescription>
+              Adicione um novo usuário à empresa {selectedCompany?.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="userName">Nome</Label>
+              <Input
+                id="userName"
+                placeholder="Nome do usuário"
+                value={newUser.name}
+                onChange={(e) => setNewUser({...newUser, name: e.target.value})}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="userEmail">Email</Label>
+              <Input
+                id="userEmail"
+                type="email"
+                placeholder="usuario@empresa.com"
+                value={newUser.email}
+                onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="userRole">Função</Label>
+              <Select value={newUser.role} onValueChange={(role) => setNewUser({...newUser, role})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a função" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="colaborador">Colaborador</SelectItem>
+                  <SelectItem value="gestor">Gestor</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex gap-2 pt-4">
+              <Button onClick={createUser} className="flex-1">
+                Criar Usuário
+              </Button>
+              <Button variant="outline" onClick={() => setShowCreateUser(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
   const [whatsappStatus, setWhatsappStatus] = useState({
     connected: false,
     connection_status: 'close',
