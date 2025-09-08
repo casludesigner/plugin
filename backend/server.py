@@ -563,7 +563,8 @@ async def get_whatsapp_status():
             if propbot_instance:
                 status = propbot_instance.get("connectionStatus", "close")
                 profile_name = propbot_instance.get("profileName", "")
-                phone = propbot_instance.get("ownerJid", "").replace("@s.whatsapp.net", "")
+                owner_jid = propbot_instance.get("ownerJid", "")
+                phone = owner_jid.replace("@s.whatsapp.net", "") if owner_jid else ""
                 
                 return {
                     "status": "success",
