@@ -797,9 +797,11 @@ async def generate_ai_response_whatsapp(lead_id: str, user_message: str):
 
 async def send_whatsapp_message(lead_id: str, message: str):
     """
-    Envia mensagem para WhatsApp (implementar conforme provider)
+    Envia mensagem para WhatsApp via Evolution API
     """
     try:
+        import requests
+        
         # Get lead phone
         lead = await db.leads.find_one({"id": lead_id})
         if not lead:
@@ -807,16 +809,29 @@ async def send_whatsapp_message(lead_id: str, message: str):
             
         phone = lead.get('phone', '')
         
-        # TODO: Implement actual WhatsApp sending
-        # This depends on your WhatsApp provider (Evolution API, Business API, etc.)
+        # Send via Evolution API
+        response = requests.post(
+            "https://api.airys.com.br/message/sendText/propbot-new",
+            headers={
+                "apikey": "4bb4d6a9f91c3b16342a251cba010a9c",
+                "Content-Type": "application/json"
+            },
+            json={
+                "number": phone,
+                "text": message
+            }
+        )
         
-        # For now, just log
-        logging.info(f"Would send WhatsApp message to {phone}: {message}")
+        if response.status_code == 201:
+            logging.info(f"WhatsApp message sent successfully to {phone}")
+        else:
+            logging.error(f"Error sending WhatsApp message: {response.text}")
         
         # Save outgoing message to database
         outgoing_message = ChatMessage(
             lead_id=lead_id,
-            sender='agent',
+            sender='human',
+            sender_name='Atendente',
             message=message,
             channel='whatsapp'
         )
