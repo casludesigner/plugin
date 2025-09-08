@@ -591,7 +591,7 @@ async def disconnect_whatsapp():
         import requests
         
         response = requests.delete(
-            "https://api.airys.com.br/instance/logout/propbot",
+            "https://api.airys.com.br/instance/logout/propbot-new",
             headers={"apikey": "4bb4d6a9f91c3b16342a251cba010a9c"}
         )
         
