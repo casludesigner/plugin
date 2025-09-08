@@ -711,7 +711,7 @@ async def whatsapp_webhook_catchall(path: str, request_body: dict):
     logging.info(f"WhatsApp webhook catchall for path: {path}")
     return await whatsapp_webhook(request_body)
 
-async def process_whatsapp_message(phone: str, text: str, message_id: str):
+async def process_whatsapp_message(phone: str, text: str, message_id: str, contact_name: str = None):
     """
     Processa mensagem recebida do WhatsApp
     """
@@ -719,15 +719,24 @@ async def process_whatsapp_message(phone: str, text: str, message_id: str):
         # Find or create lead
         lead = await db.leads.find_one({"phone": phone})
         if not lead:
-            # Create new lead from WhatsApp message
+            # Create new lead from WhatsApp message with real name
+            lead_name = contact_name or f"Lead WhatsApp {phone[-4:]}"
             new_lead = Lead(
-                name=f"Lead WhatsApp {phone[-4:]}",
+                name=lead_name,
                 phone=phone,
                 status="novo_lead"
             )
             lead_data = prepare_for_mongo(new_lead.dict())
             await db.leads.insert_one(lead_data)
             lead = new_lead.dict()
+        else:
+            # Update lead name if we got a better one
+            if contact_name and lead.get("name", "").startswith("Lead WhatsApp"):
+                await db.leads.update_one(
+                    {"id": lead["id"]},
+                    {"$set": {"name": contact_name}}
+                )
+                lead["name"] = contact_name
         
         # Save incoming message
         message = ChatMessage(
