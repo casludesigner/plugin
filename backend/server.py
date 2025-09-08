@@ -556,7 +556,7 @@ async def get_whatsapp_status():
             propbot_instance = None
             
             for instance in instances:
-                if instance.get("name") == "propbot":
+                if instance.get("name") == "propbot-new":
                     propbot_instance = instance
                     break
             
