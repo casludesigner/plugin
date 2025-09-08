@@ -779,8 +779,236 @@ async def send_to_n8n_agent(request_body: dict):
         logging.error(f"Error preparing for n8n: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Reports Routes
-@api_router.get("/reports", response_model=Report)
+# Super Admin Routes
+@api_router.get("/super-admin/stats", response_model=CompanyStats)
+async def get_super_admin_stats():
+    """
+    Estatísticas gerais do sistema para superadmin
+    """
+    try:
+        # Count companies
+        total_companies = await db.companies.count_documents({})
+        active_companies = await db.companies.count_documents({"status": "ativa"})
+        
+        # Count users
+        total_users = await db.users.count_documents({})
+        
+        # Count leads (from all companies)
+        total_leads = await db.leads.count_documents({})
+        
+        # Companies by plan
+        companies_by_plan = {}
+        plans = ["basic", "premium", "enterprise"]
+        for plan in plans:
+            count = await db.companies.count_documents({"plan": plan})
+            companies_by_plan[plan] = count
+        
+        return CompanyStats(
+            total_companies=total_companies,
+            active_companies=active_companies,
+            total_users=total_users,
+            total_leads=total_leads,
+            companies_by_plan=companies_by_plan
+        )
+        
+    except Exception as e:
+        logging.error(f"Error getting super admin stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/super-admin/companies", response_model=List[Company])
+async def get_all_companies():
+    """
+    Lista todas as empresas do sistema
+    """
+    try:
+        companies = await db.companies.find().sort("created_at", -1).to_list(1000)
+        return [Company(**parse_from_mongo(company)) for company in companies]
+    except Exception as e:
+        logging.error(f"Error getting companies: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/super-admin/companies", response_model=Company)
+async def create_company(company: CompanyCreate):
+    """
+    Cria uma nova empresa
+    """
+    try:
+        company_dict = company.dict()
+        company_obj = Company(**company_dict)
+        company_data = prepare_for_mongo(company_obj.dict())
+        await db.companies.insert_one(company_data)
+        
+        # Log activity
+        await log_activity("", "", "COMPANY_CREATED", f"Empresa {company.name} criada")
+        
+        return company_obj
+    except Exception as e:
+        logging.error(f"Error creating company: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/super-admin/companies/{company_id}", response_model=Company)
+async def get_company(company_id: str):
+    """
+    Obtém dados de uma empresa específica
+    """
+    try:
+        company = await db.companies.find_one({"id": company_id})
+        if not company:
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+        company = parse_from_mongo(company)
+        return Company(**company)
+    except Exception as e:
+        logging.error(f"Error getting company: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.put("/super-admin/companies/{company_id}", response_model=Company)
+async def update_company(company_id: str, company_update: CompanyCreate):
+    """
+    Atualiza dados de uma empresa
+    """
+    try:
+        company_dict = company_update.dict()
+        company_dict["last_activity"] = datetime.now(timezone.utc).isoformat()
+        
+        result = await db.companies.update_one(
+            {"id": company_id},
+            {"$set": prepare_for_mongo(company_dict)}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+        
+        # Get updated company
+        updated_company = await db.companies.find_one({"id": company_id})
+        updated_company = parse_from_mongo(updated_company)
+        
+        # Log activity
+        await log_activity(company_id, "", "COMPANY_UPDATED", f"Empresa {company_update.name} atualizada")
+        
+        return Company(**updated_company)
+    except Exception as e:
+        logging.error(f"Error updating company: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.put("/super-admin/companies/{company_id}/status")
+async def update_company_status(company_id: str, status: str):
+    """
+    Atualiza status de uma empresa (ativa/inativa/suspensa)
+    """
+    try:
+        if status not in ["ativa", "inativa", "suspensa"]:
+            raise HTTPException(status_code=400, detail="Status inválido")
+        
+        result = await db.companies.update_one(
+            {"id": company_id},
+            {"$set": {"status": status, "last_activity": datetime.now(timezone.utc).isoformat()}}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+        
+        # Log activity
+        await log_activity(company_id, "", "COMPANY_STATUS_CHANGED", f"Status alterado para {status}")
+        
+        return {"message": f"Status alterado para {status}"}
+    except Exception as e:
+        logging.error(f"Error updating company status: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/super-admin/companies/{company_id}/users", response_model=List[User])
+async def get_company_users(company_id: str):
+    """
+    Lista usuários de uma empresa
+    """
+    try:
+        users = await db.users.find({"company_id": company_id}).sort("created_at", -1).to_list(1000)
+        return [User(**parse_from_mongo(user)) for user in users]
+    except Exception as e:
+        logging.error(f"Error getting company users: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/super-admin/users", response_model=User)
+async def create_user(user: UserCreate):
+    """
+    Cria um novo usuário
+    """
+    try:
+        # Check if company exists
+        company = await db.companies.find_one({"id": user.company_id})
+        if not company:
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+        
+        # Check company limits
+        current_users = await db.users.count_documents({"company_id": user.company_id, "status": "ativo"})
+        if current_users >= company.get("limits", {}).get("max_users", 5):
+            raise HTTPException(status_code=400, detail="Limite de usuários atingido")
+        
+        user_dict = user.dict()
+        user_obj = User(**user_dict)
+        user_data = prepare_for_mongo(user_obj.dict())
+        await db.users.insert_one(user_data)
+        
+        # Log activity
+        await log_activity(user.company_id, user_obj.id, "USER_CREATED", f"Usuário {user.name} criado")
+        
+        return user_obj
+    except Exception as e:
+        logging.error(f"Error creating user: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.put("/super-admin/users/{user_id}/role")
+async def update_user_role(user_id: str, role: str):
+    """
+    Atualiza papel de um usuário
+    """
+    try:
+        if role not in ["superadmin", "admin", "gestor", "colaborador"]:
+            raise HTTPException(status_code=400, detail="Papel inválido")
+        
+        user = await db.users.find_one({"id": user_id})
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {"role": role}}
+        )
+        
+        # Log activity
+        await log_activity(user.get("company_id", ""), user_id, "USER_ROLE_CHANGED", f"Papel alterado para {role}")
+        
+        return {"message": f"Papel alterado para {role}"}
+    except Exception as e:
+        logging.error(f"Error updating user role: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/super-admin/companies/{company_id}/logs")
+async def get_company_logs(company_id: str, limit: int = 50):
+    """
+    Obtém logs de atividade de uma empresa
+    """
+    try:
+        logs = await db.activity_logs.find({"company_id": company_id}).sort("timestamp", -1).limit(limit).to_list(limit)
+        return [ActivityLog(**parse_from_mongo(log)) for log in logs]
+    except Exception as e:
+        logging.error(f"Error getting company logs: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def log_activity(company_id: str, user_id: str, action: str, description: str):
+    """
+    Helper function to log activities
+    """
+    try:
+        activity = ActivityLog(
+            company_id=company_id,
+            user_id=user_id if user_id else None,
+            action=action,
+            description=description
+        )
+        activity_data = prepare_for_mongo(activity.dict())
+        await db.activity_logs.insert_one(activity_data)
+    except Exception as e:
+        logging.error(f"Error logging activity: {str(e)}")
 async def get_reports():
     # Count total leads
     total_leads = await db.leads.count_documents({})
