@@ -1171,6 +1171,7 @@ const LiveChat = () => {
     if (!newMessage.trim() || !selectedConversation) return;
 
     try {
+      // Send message via API
       await axios.post(`${API}/chat/message`, {
         lead_id: selectedConversation.lead_id,
         sender: 'human',
@@ -1179,11 +1180,17 @@ const LiveChat = () => {
         channel: 'whatsapp'
       });
 
+      // Send directly to WhatsApp via Evolution API
+      await axios.post(`${API}/whatsapp/send-message`, {
+        lead_id: selectedConversation.lead_id,
+        message: newMessage
+      });
+
       setNewMessage('');
       // Refresh messages
       const response = await axios.get(`${API}/chat/${selectedConversation.lead_id}`);
       setMessages(response.data);
-      toast.success('Mensagem enviada!');
+      toast.success('Mensagem enviada para o WhatsApp!');
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
       toast.error('Erro ao enviar mensagem');
