@@ -1091,6 +1091,9 @@ const WhatsAppConfig = () => {
     </div>
   );
 };
+
+// Live Chat Component
+const LiveChat = () => {
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [leads, setLeads] = useState([]);
