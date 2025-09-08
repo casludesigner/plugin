@@ -188,8 +188,11 @@ async def get_chat_history(lead_id: str):
     return [ChatMessage(**parse_from_mongo(message)) for message in messages]
 
 @api_router.post("/chat/ai-response/{lead_id}")
-async def get_ai_response(lead_id: str, user_message: str):
+async def get_ai_response(lead_id: str, request_body: dict):
     try:
+        # Extract user message from request body
+        user_message = request_body.get("message", "")
+        
         # Get agent config
         config = await db.agent_configs.find_one({}, sort=[("created_at", -1)])
         if not config:
