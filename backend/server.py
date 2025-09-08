@@ -586,6 +586,162 @@ async def upload_knowledge(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Erro ao processar arquivo: {str(e)}")
 
+# WhatsApp Webhook Handler
+@api_router.post("/whatsapp/webhook")
+async def whatsapp_webhook(request_body: dict):
+    """
+    Webhook para receber mensagens do WhatsApp
+    """
+    try:
+        # Log incoming message
+        logging.info(f"WhatsApp webhook received: {request_body}")
+        
+        # Extract message data (format varies by provider)
+        if 'messages' in request_body:
+            # WhatsApp Business API format
+            for message in request_body['messages']:
+                phone = message.get('from', '').replace('+', '')
+                text = message.get('text', {}).get('body', '')
+                message_id = message.get('id', '')
+                
+                if text and phone:
+                    await process_whatsapp_message(phone, text, message_id)
+                    
+        elif 'data' in request_body:
+            # Evolution API format
+            data = request_body['data']
+            phone = data.get('key', {}).get('remoteJid', '').replace('@s.whatsapp.net', '')
+            text = data.get('message', {}).get('conversation', '') or \
+                   data.get('message', {}).get('extendedTextMessage', {}).get('text', '')
+            message_id = data.get('key', {}).get('id', '')
+            
+            if text and phone:
+                await process_whatsapp_message(phone, text, message_id)
+        
+        return {"status": "success"}
+        
+    except Exception as e:
+        logging.error(f"WhatsApp webhook error: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+async def process_whatsapp_message(phone: str, text: str, message_id: str):
+    """
+    Processa mensagem recebida do WhatsApp
+    """
+    try:
+        # Find or create lead
+        lead = await db.leads.find_one({"phone": phone})
+        if not lead:
+            # Create new lead from WhatsApp message
+            new_lead = Lead(
+                name=f"Lead WhatsApp {phone[-4:]}",
+                phone=phone,
+                status="novo_lead"
+            )
+            lead_data = prepare_for_mongo(new_lead.dict())
+            await db.leads.insert_one(lead_data)
+            lead = new_lead.dict()
+        
+        # Save incoming message
+        message = ChatMessage(
+            lead_id=lead['id'],
+            sender='lead',
+            message=text,
+            channel='whatsapp'
+        )
+        message_data = prepare_for_mongo(message.dict())
+        await db.messages.insert_one(message_data)
+        
+        # Create/update live conversation
+        conversation = await db.live_conversations.find_one({"lead_id": lead['id']})
+        if not conversation:
+            new_conversation = LiveConversation(
+                lead_id=lead['id'],
+                status='novo',
+                channel='whatsapp',
+                last_message=text
+            )
+            conv_data = prepare_for_mongo(new_conversation.dict())
+            await db.live_conversations.insert_one(conv_data)
+        else:
+            await db.live_conversations.update_one(
+                {"id": conversation['id']},
+                {"$set": {
+                    "last_message": text,
+                    "last_message_time": datetime.now(timezone.utc).isoformat(),
+                    "status": "novo"
+                }}
+            )
+        
+        # Auto-respond with AI if no human agent assigned
+        if not conversation or not conversation.get('assigned_to'):
+            await generate_ai_response_whatsapp(lead['id'], text)
+            
+    except Exception as e:
+        logging.error(f"Error processing WhatsApp message: {str(e)}")
+
+async def generate_ai_response_whatsapp(lead_id: str, user_message: str):
+    """
+    Gera resposta automática da IA para WhatsApp
+    """
+    try:
+        # Get AI response (reuse existing logic)
+        response = await get_ai_response(lead_id, {"message": user_message})
+        ai_text = response.get("response", "")
+        
+        if ai_text:
+            # Send response back to WhatsApp
+            await send_whatsapp_message(lead_id, ai_text)
+            
+    except Exception as e:
+        logging.error(f"Error generating AI response for WhatsApp: {str(e)}")
+
+async def send_whatsapp_message(lead_id: str, message: str):
+    """
+    Envia mensagem para WhatsApp (implementar conforme provider)
+    """
+    try:
+        # Get lead phone
+        lead = await db.leads.find_one({"id": lead_id})
+        if not lead:
+            return
+            
+        phone = lead.get('phone', '')
+        
+        # TODO: Implement actual WhatsApp sending
+        # This depends on your WhatsApp provider (Evolution API, Business API, etc.)
+        
+        # For now, just log
+        logging.info(f"Would send WhatsApp message to {phone}: {message}")
+        
+        # Save outgoing message to database
+        outgoing_message = ChatMessage(
+            lead_id=lead_id,
+            sender='agent',
+            message=message,
+            channel='whatsapp'
+        )
+        message_data = prepare_for_mongo(outgoing_message.dict())
+        await db.messages.insert_one(message_data)
+        
+    except Exception as e:
+        logging.error(f"Error sending WhatsApp message: {str(e)}")
+
+@api_router.get("/whatsapp/webhook")  
+async def whatsapp_webhook_verify(hub_mode: str = None, hub_verify_token: str = None, hub_challenge: str = None):
+    """
+    Verificação do webhook do WhatsApp Business API
+    """
+    verify_token = "propbot_verify_token_123"  # Configure this
+    
+    if hub_mode == "subscribe" and hub_challenge:
+        if hub_verify_token == verify_token:
+            return int(hub_challenge)
+        else:
+            return {"error": "Invalid verify token"}
+    
+    return {"status": "webhook endpoint active"}
+
 # Include the router in the main app
 app.include_router(api_router)
 
