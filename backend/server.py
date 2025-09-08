@@ -582,8 +582,24 @@ async def get_whatsapp_status():
         logging.error(f"Error checking WhatsApp status: {str(e)}")
         return {"status": "error", "message": str(e)}
 
-@api_router.post("/whatsapp/disconnect")
-async def disconnect_whatsapp():
+@api_router.post("/whatsapp/send-message")
+async def send_message_to_whatsapp(request_body: dict):
+    """
+    Envia mensagem diretamente para WhatsApp
+    """
+    try:
+        lead_id = request_body.get('lead_id')
+        message = request_body.get('message')
+        
+        if not lead_id or not message:
+            raise HTTPException(status_code=400, detail="lead_id e message são obrigatórios")
+        
+        await send_whatsapp_message(lead_id, message)
+        return {"status": "success", "message": "Mensagem enviada para WhatsApp"}
+        
+    except Exception as e:
+        logging.error(f"Error in send_message_to_whatsapp: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
     """
     Desconecta WhatsApp
     """
