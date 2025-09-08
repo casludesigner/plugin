@@ -2565,6 +2565,7 @@ function App() {
               <Route path="/whatsapp-config" element={<WhatsAppConfig />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/chat/:leadId" element={<ChatWrapper />} />
+              <Route path="/super-admin" element={<SuperAdmin />} />
             </Routes>
           </div>
         </main>
