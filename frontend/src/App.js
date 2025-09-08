@@ -523,7 +523,7 @@ const AgentConfig = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="personality" className="flex items-center gap-2">
             <Bot className="h-4 w-4" />
             Personalidade
@@ -535,6 +535,10 @@ const AgentConfig = () => {
           <TabsTrigger value="documents" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
             Documentos
+          </TabsTrigger>
+          <TabsTrigger value="advanced" className="flex items-center gap-2">
+            <Bot className="h-4 w-4" />
+            IA Avançada
           </TabsTrigger>
         </TabsList>
 
