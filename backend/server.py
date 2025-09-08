@@ -125,6 +125,62 @@ class WhatsAppIntegration(BaseModel):
     access_token: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+# Multi-tenant Models
+class Company(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    cnpj: Optional[str] = None
+    email: str
+    phone: Optional[str] = None
+    status: str = "ativa"  # ativa, inativa, suspensa
+    plan: str = "basic"  # basic, premium, enterprise
+    limits: Dict[str, int] = Field(default_factory=lambda: {
+        "max_users": 5,
+        "max_leads": 1000,
+        "max_agents": 2,
+        "max_integrations": 3
+    })
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_activity: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class CompanyCreate(BaseModel):
+    name: str
+    cnpj: Optional[str] = None
+    email: str
+    phone: Optional[str] = None
+    plan: str = "basic"
+
+class User(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    company_id: str
+    name: str
+    email: str
+    role: str = "colaborador"  # superadmin, admin, gestor, colaborador
+    status: str = "ativo"  # ativo, inativo
+    last_login: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class UserCreate(BaseModel):
+    company_id: str
+    name: str
+    email: str
+    role: str = "colaborador"
+
+class ActivityLog(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    company_id: str
+    user_id: Optional[str] = None
+    action: str
+    description: str
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class CompanyStats(BaseModel):
+    total_companies: int
+    active_companies: int
+    total_users: int
+    total_leads: int
+    companies_by_plan: Dict[str, int]
+
 class Report(BaseModel):
     total_leads: int
     leads_by_status: Dict[str, int]
