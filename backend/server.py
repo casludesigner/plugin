@@ -55,6 +55,8 @@ class Lead(BaseModel):
     phone: str
     email: Optional[str] = None
     status: str = "novo_lead"  # novo_lead, em_negociacao, visita_agendada, fechamento
+    tags: List[str] = Field(default_factory=list)  # quente, frio, em_negociacao
+    notes: str = ""
     last_interaction: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -66,14 +68,41 @@ class LeadCreate(BaseModel):
 class ChatMessage(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     lead_id: str
-    sender: str  # "lead" or "agent"
+    sender: str  # "lead", "agent", "human"
+    sender_name: Optional[str] = None  # Nome do atendente humano
     message: str
+    channel: str = "whatsapp"  # whatsapp, web, etc
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ChatMessageCreate(BaseModel):
     lead_id: str
     sender: str
+    sender_name: Optional[str] = None
     message: str
+    channel: str = "whatsapp"
+
+class LiveConversation(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    lead_id: str
+    status: str = "novo"  # novo, em_atendimento, fechado
+    assigned_to: Optional[str] = None  # Nome do atendente
+    channel: str = "whatsapp"
+    last_message: Optional[str] = None
+    last_message_time: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class LiveConversationCreate(BaseModel):
+    lead_id: str
+    channel: str = "whatsapp"
+
+class WhatsAppIntegration(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    is_connected: bool = False
+    phone_number: Optional[str] = None
+    business_name: Optional[str] = None
+    webhook_url: Optional[str] = None
+    access_token: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class Report(BaseModel):
     total_leads: int
@@ -94,7 +123,7 @@ def prepare_for_mongo(data):
 def parse_from_mongo(item):
     if isinstance(item, dict):
         for key, value in item.items():
-            if key.endswith('_at') or key == 'timestamp':
+            if key.endswith('_at') or key == 'timestamp' or key == 'last_message_time':
                 if isinstance(value, str):
                     try:
                         item[key] = datetime.fromisoformat(value.replace('Z', '+00:00'))
@@ -165,6 +194,23 @@ async def update_lead_status(lead_id: str, status: str):
         {"$set": {"status": status, "last_interaction": datetime.now(timezone.utc).isoformat()}}
     )
     return {"message": "Status atualizado com sucesso"}
+
+@api_router.put("/leads/{lead_id}/tags")
+async def update_lead_tags(lead_id: str, tags: List[str]):
+    await db.leads.update_one(
+        {"id": lead_id},
+        {"$set": {"tags": tags}}
+    )
+    return {"message": "Tags atualizadas com sucesso"}
+
+@api_router.put("/leads/{lead_id}/notes")
+async def update_lead_notes(lead_id: str, request_body: dict):
+    notes = request_body.get("notes", "")
+    await db.leads.update_one(
+        {"id": lead_id},
+        {"$set": {"notes": notes}}
+    )
+    return {"message": "Observações atualizadas com sucesso"}
 
 # Chat Routes
 @api_router.post("/chat/message", response_model=ChatMessage)
@@ -259,6 +305,76 @@ Responda de forma natural, seguindo seu roteiro e comportamento. Seja objetivo e
         await db.messages.insert_one(ai_message_data)
         
         return {"response": fallback_response}
+
+# Live Chat Routes
+@api_router.get("/live-conversations", response_model=List[LiveConversation])
+async def get_live_conversations():
+    conversations = await db.live_conversations.find().sort("last_message_time", -1).to_list(1000)
+    return [LiveConversation(**parse_from_mongo(conv)) for conv in conversations]
+
+@api_router.post("/live-conversations", response_model=LiveConversation)
+async def create_live_conversation(conv: LiveConversationCreate):
+    conv_dict = conv.dict()
+    conv_obj = LiveConversation(**conv_dict)
+    conv_data = prepare_for_mongo(conv_obj.dict())
+    await db.live_conversations.insert_one(conv_data)
+    return conv_obj
+
+@api_router.put("/live-conversations/{conv_id}/assign")
+async def assign_conversation(conv_id: str, request_body: dict):
+    attendant_name = request_body.get("attendant_name", "")
+    await db.live_conversations.update_one(
+        {"id": conv_id},
+        {"$set": {"assigned_to": attendant_name, "status": "em_atendimento"}}
+    )
+    return {"message": "Conversa atribuída com sucesso"}
+
+@api_router.put("/live-conversations/{conv_id}/return-to-bot") 
+async def return_to_bot(conv_id: str):
+    await db.live_conversations.update_one(
+        {"id": conv_id},
+        {"$set": {"assigned_to": None, "status": "novo"}}
+    )
+    return {"message": "Conversa devolvida para o bot"}
+
+@api_router.put("/live-conversations/{conv_id}/close")
+async def close_conversation(conv_id: str):
+    await db.live_conversations.update_one(
+        {"id": conv_id},
+        {"$set": {"status": "fechado"}}
+    )
+    return {"message": "Conversa encerrada"}
+
+# WhatsApp Integration Routes
+@api_router.get("/whatsapp-integration", response_model=WhatsAppIntegration)
+async def get_whatsapp_integration():
+    integration = await db.whatsapp_integrations.find_one({}, sort=[("created_at", -1)])
+    if not integration:
+        # Return default config
+        default_integration = WhatsAppIntegration()
+        integration_data = prepare_for_mongo(default_integration.dict())
+        await db.whatsapp_integrations.insert_one(integration_data)
+        return default_integration
+    integration = parse_from_mongo(integration)
+    return WhatsAppIntegration(**integration)
+
+@api_router.post("/whatsapp-integration/connect")
+async def connect_whatsapp(request_body: dict):
+    phone_number = request_body.get("phone_number", "")
+    business_name = request_body.get("business_name", "")
+    
+    # Simulate connection (in real implementation, this would integrate with WhatsApp Business API)
+    integration_data = {
+        "is_connected": True,
+        "phone_number": phone_number,
+        "business_name": business_name,
+        "webhook_url": "https://propbot-mvp.preview.emergentagent.com/api/whatsapp/webhook",
+        "access_token": "simulated_token_" + str(uuid.uuid4())[:8],
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.whatsapp_integrations.insert_one(integration_data)
+    return {"message": "WhatsApp conectado com sucesso", "status": "connected"}
 
 # Reports Routes
 @api_router.get("/reports", response_model=Report)

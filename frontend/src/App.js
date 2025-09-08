@@ -12,7 +12,8 @@ import { Label } from "./components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 import { Avatar, AvatarFallback } from "./components/ui/avatar";
 import { Separator } from "./components/ui/separator";
-import { MessageSquare, Users, TrendingUp, Bot, Settings, BarChart3, UserPlus, Phone, Mail, Calendar, Send } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./components/ui/dialog";
+import { MessageSquare, Users, TrendingUp, Bot, Settings, BarChart3, UserPlus, Phone, Mail, Calendar, Send, MessageCircle, Search, Filter, Paperclip, Smile, MoreHorizontal, X } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -523,6 +524,482 @@ const CRM = () => {
   );
 };
 
+// Live Chat Component
+const LiveChat = () => {
+  const [conversations, setConversations] = useState([]);
+  const [selectedConversation, setSelectedConversation] = useState(null);
+  const [leads, setLeads] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [filter, setFilter] = useState('todos');
+  const [whatsappIntegration, setWhatsappIntegration] = useState({ is_connected: false });
+  const [showConnectDialog, setShowConnectDialog] = useState(false);
+  const [connectionForm, setConnectionForm] = useState({ phone_number: '', business_name: '' });
+  const [selectedLead, setSelectedLead] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [leadsRes, integrationRes] = await Promise.all([
+        axios.get(`${API}/leads`),
+        axios.get(`${API}/whatsapp-integration`)
+      ]);
+      
+      setLeads(leadsRes.data);
+      setWhatsappIntegration(integrationRes.data);
+      
+      // Create mock conversations from leads
+      const mockConversations = leadsRes.data.map(lead => ({
+        id: `conv_${lead.id}`,
+        lead_id: lead.id,
+        status: 'novo',
+        assigned_to: null,
+        channel: 'whatsapp',
+        last_message: 'Olá! Estou interessado em imóveis.',
+        last_message_time: lead.last_interaction,
+        lead: lead
+      }));
+      
+      setConversations(mockConversations);
+      
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      toast.error('Erro ao carregar dados do chat');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const connectWhatsApp = async () => {
+    try {
+      await axios.post(`${API}/whatsapp-integration/connect`, connectionForm);
+      setWhatsappIntegration({ is_connected: true, ...connectionForm });
+      setShowConnectDialog(false);
+      toast.success('WhatsApp conectado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao conectar WhatsApp:', error);
+      toast.error('Erro ao conectar WhatsApp');
+    }
+  };
+
+  const selectConversation = async (conversation) => {
+    setSelectedConversation(conversation);
+    setSelectedLead(conversation.lead);
+    
+    try {
+      const response = await axios.get(`${API}/chat/${conversation.lead_id}`);
+      setMessages(response.data);
+    } catch (error) {
+      console.error('Erro ao carregar mensagens:', error);
+      setMessages([]);
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation) return;
+
+    try {
+      await axios.post(`${API}/chat/message`, {
+        lead_id: selectedConversation.lead_id,
+        sender: 'human',
+        sender_name: 'Atendente',
+        message: newMessage,
+        channel: 'whatsapp'
+      });
+
+      setNewMessage('');
+      // Refresh messages
+      const response = await axios.get(`${API}/chat/${selectedConversation.lead_id}`);
+      setMessages(response.data);
+      toast.success('Mensagem enviada!');
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error);
+      toast.error('Erro ao enviar mensagem');
+    }
+  };
+
+  const assignToMe = async () => {
+    if (!selectedConversation) return;
+    
+    // Update conversation status
+    const updatedConversations = conversations.map(conv => 
+      conv.id === selectedConversation.id 
+        ? { ...conv, status: 'em_atendimento', assigned_to: 'Atendente' }
+        : conv
+    );
+    setConversations(updatedConversations);
+    setSelectedConversation({ ...selectedConversation, status: 'em_atendimento', assigned_to: 'Atendente' });
+    toast.success('Atendimento assumido!');
+  };
+
+  const returnToBot = async () => {
+    if (!selectedConversation) return;
+    
+    // Update conversation status
+    const updatedConversations = conversations.map(conv => 
+      conv.id === selectedConversation.id 
+        ? { ...conv, status: 'novo', assigned_to: null }
+        : conv
+    );
+    setConversations(updatedConversations);
+    setSelectedConversation({ ...selectedConversation, status: 'novo', assigned_to: null });
+    toast.success('Conversa devolvida para o bot!');
+  };
+
+  const closeConversation = async () => {
+    if (!selectedConversation) return;
+    
+    // Update conversation status
+    const updatedConversations = conversations.map(conv => 
+      conv.id === selectedConversation.id 
+        ? { ...conv, status: 'fechado' }
+        : conv
+    );
+    setConversations(updatedConversations);
+    setSelectedConversation({ ...selectedConversation, status: 'fechado' });
+    toast.success('Conversa encerrada!');
+  };
+
+  const filteredConversations = conversations.filter(conv => {
+    if (filter === 'todos') return true;
+    if (filter === 'novos') return conv.status === 'novo';
+    if (filter === 'em_atendimento') return conv.status === 'em_atendimento';
+    if (filter === 'fechados') return conv.status === 'fechado';
+    return true;
+  });
+
+  const getStatusColor = (status) => {
+    const colors = {
+      novo: "bg-blue-100 text-blue-800",
+      em_atendimento: "bg-green-100 text-green-800",
+      fechado: "bg-gray-100 text-gray-800"
+    };
+    return colors[status] || "bg-gray-100 text-gray-800";
+  };
+
+  const getStatusLabel = (status) => {
+    const labels = {
+      novo: "Novo",
+      em_atendimento: "Em Atendimento",
+      fechado: "Fechado"
+    };
+    return labels[status] || status;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-screen flex flex-col">
+      {/* WhatsApp Connection Banner */}
+      {!whatsappIntegration.is_connected && (
+        <div className="bg-green-500 text-white p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <MessageCircle className="h-6 w-6" />
+            <span className="font-medium">Conecte o WhatsApp para ativar o atendimento ao vivo</span>
+          </div>
+          <Button 
+            variant="secondary" 
+            onClick={() => setShowConnectDialog(true)}
+            className="bg-white text-green-700 hover:bg-gray-100"
+          >
+            Conectar WhatsApp
+          </Button>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Sidebar de Conversas */}
+        <div className="w-80 border-r bg-white flex flex-col">
+          <div className="p-4 border-b">
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">Chat ao Vivo</h2>
+            
+            {/* Filtros */}
+            <div className="flex gap-1">
+              {[
+                { key: 'todos', label: 'Todos' },
+                { key: 'novos', label: 'Novos' },
+                { key: 'em_atendimento', label: 'Em Atendimento' },
+                { key: 'fechados', label: 'Fechados' }
+              ].map(({ key, label }) => (
+                <Button
+                  key={key}
+                  size="sm"
+                  variant={filter === key ? "default" : "ghost"}
+                  onClick={() => setFilter(key)}
+                  className="text-xs"
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Lista de Conversas */}
+          <div className="flex-1 overflow-y-auto">
+            {filteredConversations.map((conversation) => (
+              <div
+                key={conversation.id}
+                onClick={() => selectConversation(conversation)}
+                className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
+                  selectedConversation?.id === conversation.id ? 'bg-blue-50 border-blue-200' : ''
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="bg-green-100 text-green-700">
+                      {conversation.lead?.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-medium text-sm text-gray-900 truncate">
+                        {conversation.lead?.name}
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <MessageCircle className="h-3 w-3 text-green-600" />
+                      </div>
+                    </div>
+                    
+                    <p className="text-xs text-gray-500 truncate mb-2">
+                      {conversation.last_message}
+                    </p>
+                    
+                    <div className="flex items-center justify-between">
+                      <Badge className={`text-xs ${getStatusColor(conversation.status)}`}>
+                        {getStatusLabel(conversation.status)}
+                      </Badge>
+                      <span className="text-xs text-gray-400">
+                        {new Date(conversation.last_message_time).toLocaleTimeString('pt-BR', { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Área Principal */}
+        <div className="flex-1 flex">
+          {selectedConversation ? (
+            <>
+              {/* Chat Area */}
+              <div className="flex-1 flex flex-col">
+                {/* Header */}
+                <div className="p-4 border-b bg-white">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback className="bg-green-100 text-green-700">
+                          {selectedLead?.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{selectedLead?.name}</h3>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <MessageCircle className="h-3 w-3" />
+                          <span>WhatsApp</span>
+                          <span>•</span>
+                          <span>
+                            {selectedConversation.assigned_to 
+                              ? `Atendido por ${selectedConversation.assigned_to}`
+                              : 'Atendido pelo Bot'
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      {selectedConversation.status === 'novo' && (
+                        <Button size="sm" onClick={assignToMe}>
+                          Assumir Atendimento
+                        </Button>
+                      )}
+                      {selectedConversation.status === 'em_atendimento' && (
+                        <Button size="sm" variant="outline" onClick={returnToBot}>
+                          Devolver para IA
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline" onClick={closeConversation}>
+                        Encerrar
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.sender === 'lead' ? 'justify-start' : 'justify-end'}`}
+                    >
+                      <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                        message.sender === 'lead'
+                          ? 'bg-gray-100 text-gray-900'
+                          : message.sender === 'agent'
+                          ? 'bg-green-100 text-green-900 flex items-start gap-2'
+                          : 'bg-blue-500 text-white'
+                      }`}>
+                        {message.sender === 'agent' && <span className="text-xs">🤖</span>}
+                        <div>
+                          <p className="text-sm">{message.message}</p>
+                          <p className={`text-xs mt-1 ${
+                            message.sender === 'lead' 
+                              ? 'text-gray-500' 
+                              : message.sender === 'agent'
+                              ? 'text-green-600'
+                              : 'text-blue-100'
+                          }`}>
+                            {new Date(message.timestamp).toLocaleTimeString('pt-BR', { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Message Input */}
+                <div className="p-4 border-t bg-white">
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="ghost">
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
+                    <Input
+                      placeholder="Digite sua mensagem..."
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                      className="flex-1"
+                    />
+                    <Button size="sm" variant="ghost">
+                      <Smile className="h-4 w-4" />
+                    </Button>
+                    <Button size="sm" onClick={sendMessage} disabled={!newMessage.trim()}>
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lead Panel */}
+              <div className="w-80 border-l bg-gray-50 p-4">
+                <h3 className="font-semibold text-gray-900 mb-4">Informações do Lead</h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Nome</Label>
+                    <p className="text-sm text-gray-900">{selectedLead?.name}</p>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Telefone</Label>
+                    <p className="text-sm text-gray-900">{selectedLead?.phone}</p>
+                  </div>
+                  
+                  {selectedLead?.email && (
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Email</Label>
+                      <p className="text-sm text-gray-900">{selectedLead?.email}</p>
+                    </div>
+                  )}
+                  
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Tags</Label>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      <Badge variant="outline">Interessado</Badge>
+                      <Badge variant="outline">Apartamento</Badge>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Observações Internas</Label>
+                    <Textarea
+                      placeholder="Adicione observações sobre este lead..."
+                      className="mt-1"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center bg-gray-50">
+              <div className="text-center">
+                <MessageCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Selecione uma conversa</h3>
+                <p className="text-gray-500">Escolha uma conversa da lista para começar o atendimento</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* WhatsApp Connection Dialog */}
+      <Dialog open={showConnectDialog} onOpenChange={setShowConnectDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Conectar WhatsApp Business</DialogTitle>
+            <DialogDescription>
+              Configure sua conta do WhatsApp Business para receber mensagens
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="business_name">Nome da Empresa</Label>
+              <Input
+                id="business_name"
+                placeholder="Sua Imobiliária"
+                value={connectionForm.business_name}
+                onChange={(e) => setConnectionForm({...connectionForm, business_name: e.target.value})}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="phone_number">Número do WhatsApp</Label>
+              <Input
+                id="phone_number"
+                placeholder="(11) 99999-9999"
+                value={connectionForm.phone_number}
+                onChange={(e) => setConnectionForm({...connectionForm, phone_number: e.target.value})}
+              />
+            </div>
+            
+            <div className="flex gap-2 pt-4">
+              <Button onClick={connectWhatsApp} className="flex-1">
+                Conectar WhatsApp
+              </Button>
+              <Button variant="outline" onClick={() => setShowConnectDialog(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
 // Chat Component
 const Chat = ({ leadId }) => {
   const [messages, setMessages] = useState([]);
@@ -566,9 +1043,7 @@ const Chat = ({ leadId }) => {
       });
 
       // Get AI response
-      const aiResponse = await axios.post(`${API}/chat/ai-response/${leadId}`, newMessage, {
-        headers: { 'Content-Type': 'text/plain' }
-      });
+      const aiResponse = await axios.post(`${API}/chat/ai-response/${leadId}`, { message: newMessage });
 
       setNewMessage('');
       fetchChatData(); // Refresh messages
@@ -814,6 +1289,9 @@ const Navigation = () => {
             <Link to="/crm" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
               CRM
             </Link>
+            <Link to="/live-chat" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+              Chat ao Vivo
+            </Link>
             <Link to="/reports" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
               Relatórios
             </Link>
@@ -836,6 +1314,7 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/agent" element={<AgentConfig />} />
               <Route path="/crm" element={<CRM />} />
+              <Route path="/live-chat" element={<LiveChat />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/chat/:leadId" element={<ChatWrapper />} />
             </Routes>
