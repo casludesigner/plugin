@@ -508,23 +508,100 @@ async def get_whatsapp_integration():
     integration = parse_from_mongo(integration)
     return WhatsAppIntegration(**integration)
 
-@api_router.post("/whatsapp-integration/connect")
-async def connect_whatsapp(request_body: dict):
-    phone_number = request_body.get("phone_number", "")
-    business_name = request_body.get("business_name", "")
-    
-    # Simulate connection (in real implementation, this would integrate with WhatsApp Business API)
-    integration_data = {
-        "is_connected": True,
-        "phone_number": phone_number,
-        "business_name": business_name,
-        "webhook_url": "https://propbot-mvp.preview.emergentagent.com/api/whatsapp/webhook",
-        "access_token": "simulated_token_" + str(uuid.uuid4())[:8],
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    
-    await db.whatsapp_integrations.insert_one(integration_data)
-    return {"message": "WhatsApp conectado com sucesso", "status": "connected"}
+# WhatsApp Management Routes
+@api_router.get("/whatsapp/qr-code")
+async def get_whatsapp_qr():
+    """
+    Gera QR Code para conectar WhatsApp
+    """
+    try:
+        import requests
+        
+        # Call Evolution API to get QR code
+        response = requests.get(
+            "https://api.airys.com.br/instance/connect/propbot",
+            headers={"apikey": "4bb4d6a9f91c3b16342a251cba010a9c"}
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                "qr_code": data.get("base64", ""),
+                "code": data.get("code", ""),
+                "status": "success"
+            }
+        else:
+            return {"status": "error", "message": "Erro ao gerar QR Code"}
+            
+    except Exception as e:
+        logging.error(f"Error getting QR code: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+@api_router.get("/whatsapp/status")
+async def get_whatsapp_status():
+    """
+    Verifica status da conexão WhatsApp
+    """
+    try:
+        import requests
+        
+        # Check instance status
+        response = requests.get(
+            "https://api.airys.com.br/instance/fetchInstances",
+            headers={"apikey": "4bb4d6a9f91c3b16342a251cba010a9c"}
+        )
+        
+        if response.status_code == 200:
+            instances = response.json()
+            propbot_instance = None
+            
+            for instance in instances:
+                if instance.get("name") == "propbot":
+                    propbot_instance = instance
+                    break
+            
+            if propbot_instance:
+                status = propbot_instance.get("connectionStatus", "close")
+                profile_name = propbot_instance.get("profileName", "")
+                phone = propbot_instance.get("ownerJid", "").replace("@s.whatsapp.net", "")
+                
+                return {
+                    "status": "success",
+                    "connected": status == "open",
+                    "connection_status": status,
+                    "profile_name": profile_name,
+                    "phone": phone
+                }
+            else:
+                return {"status": "error", "message": "Instância não encontrada"}
+        else:
+            return {"status": "error", "message": "Erro ao verificar status"}
+            
+    except Exception as e:
+        logging.error(f"Error checking WhatsApp status: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+@api_router.post("/whatsapp/disconnect")
+async def disconnect_whatsapp():
+    """
+    Desconecta WhatsApp
+    """
+    try:
+        import requests
+        
+        response = requests.delete(
+            "https://api.airys.com.br/instance/logout/propbot",
+            headers={"apikey": "4bb4d6a9f91c3b16342a251cba010a9c"}
+        )
+        
+        if response.status_code == 200:
+            return {"status": "success", "message": "WhatsApp desconectado"}
+        else:
+            return {"status": "error", "message": "Erro ao desconectar"}
+            
+    except Exception as e:
+        logging.error(f"Error disconnecting WhatsApp: {str(e)}")
+        return {"status": "error", "message": str(e)}
 
 # Reports Routes
 @api_router.get("/reports", response_model=Report)
