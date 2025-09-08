@@ -681,9 +681,10 @@ async def whatsapp_webhook(request_body: dict):
                 phone = message.get('from', '').replace('+', '')
                 text = message.get('text', {}).get('body', '')
                 message_id = message.get('id', '')
+                contact_name = message.get('profile', {}).get('name', '')
                 
                 if text and phone:
-                    await process_whatsapp_message(phone, text, message_id)
+                    await process_whatsapp_message(phone, text, message_id, contact_name)
                     
         elif 'data' in request_body:
             # Evolution API format
@@ -692,9 +693,11 @@ async def whatsapp_webhook(request_body: dict):
             text = data.get('message', {}).get('conversation', '') or \
                    data.get('message', {}).get('extendedTextMessage', {}).get('text', '')
             message_id = data.get('key', {}).get('id', '')
+            # Try to get contact name from pushName or other fields
+            contact_name = data.get('pushName', '') or data.get('verifiedBizName', '') or data.get('notifyName', '')
             
             if text and phone:
-                await process_whatsapp_message(phone, text, message_id)
+                await process_whatsapp_message(phone, text, message_id, contact_name)
         
         return {"status": "success"}
         
