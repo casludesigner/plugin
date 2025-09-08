@@ -815,8 +815,282 @@ const CRM = () => {
   );
 };
 
-// Live Chat Component
-const LiveChat = () => {
+// WhatsApp Configuration Component
+const WhatsAppConfig = () => {
+  const [whatsappStatus, setWhatsappStatus] = useState({
+    connected: false,
+    connection_status: 'close',
+    profile_name: '',
+    phone: ''
+  });
+  const [qrCode, setQrCode] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [connecting, setConnecting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    checkWhatsAppStatus();
+  }, []);
+
+  const checkWhatsAppStatus = async () => {
+    try {
+      const response = await axios.get(`${API}/whatsapp/status`);
+      if (response.data.status === 'success') {
+        setWhatsappStatus(response.data);
+        
+        // If not connected, get QR code
+        if (!response.data.connected) {
+          await getQRCode();
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao verificar status:', error);
+      toast.error('Erro ao verificar status do WhatsApp');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getQRCode = async () => {
+    setConnecting(true);
+    try {
+      const response = await axios.get(`${API}/whatsapp/qr-code`);
+      if (response.data.status === 'success') {
+        setQrCode(response.data.qr_code);
+        
+        // Start polling for connection
+        const pollInterval = setInterval(async () => {
+          const statusResponse = await axios.get(`${API}/whatsapp/status`);
+          if (statusResponse.data.connected) {
+            setWhatsappStatus(statusResponse.data);
+            setConnecting(false);
+            clearInterval(pollInterval);
+            toast.success('WhatsApp conectado com sucesso!');
+          }
+        }, 3000);
+
+        // Stop polling after 2 minutes
+        setTimeout(() => {
+          clearInterval(pollInterval);
+          setConnecting(false);
+        }, 120000);
+      }
+    } catch (error) {
+      console.error('Erro ao gerar QR Code:', error);
+      toast.error('Erro ao gerar QR Code');
+      setConnecting(false);
+    }
+  };
+
+  const refreshQRCode = async () => {
+    setRefreshing(true);
+    await getQRCode();
+    setRefreshing(false);
+  };
+
+  const disconnectWhatsApp = async () => {
+    try {
+      await axios.post(`${API}/whatsapp/disconnect`);
+      setWhatsappStatus({
+        connected: false,
+        connection_status: 'close',
+        profile_name: '',
+        phone: ''
+      });
+      await getQRCode();
+      toast.success('WhatsApp desconectado');
+    } catch (error) {
+      console.error('Erro ao desconectar:', error);
+      toast.error('Erro ao desconectar WhatsApp');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-8">
+      <div>
+        <h1 className="text-4xl font-bold text-gray-900 mb-2">Configuração do WhatsApp</h1>
+        <p className="text-lg text-gray-600">Configure a integração com WhatsApp Business</p>
+      </div>
+
+      {/* Status Card */}
+      <Card className={`${whatsappStatus.connected ? 'bg-gradient-to-br from-green-50 to-green-100 border-green-200' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}>
+        <CardHeader>
+          <CardTitle className={`flex items-center gap-2 ${whatsappStatus.connected ? 'text-green-900' : 'text-gray-900'}`}>
+            {whatsappStatus.connected ? <Wifi className="h-5 w-5" /> : <WifiOff className="h-5 w-5" />}
+            Status da Conexão
+          </CardTitle>
+          <CardDescription className={whatsappStatus.connected ? 'text-green-700' : 'text-gray-600'}>
+            {whatsappStatus.connected ? 'WhatsApp conectado e funcionando' : 'WhatsApp não conectado'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Status:</p>
+              <Badge className={whatsappStatus.connected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                {whatsappStatus.connected ? 'Conectado' : 'Desconectado'}
+              </Badge>
+            </div>
+            
+            {whatsappStatus.connected && (
+              <div className="text-right">
+                <p className="font-medium">{whatsappStatus.profile_name || 'WhatsApp Business'}</p>
+                <p className="text-sm text-gray-600">{whatsappStatus.phone}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2">
+            <Button onClick={checkWhatsAppStatus} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Atualizar Status
+            </Button>
+            
+            {whatsappStatus.connected && (
+              <Button onClick={disconnectWhatsApp} variant="outline" className="text-red-600 hover:text-red-700">
+                <WifiOff className="h-4 w-4 mr-2" />
+                Desconectar
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* QR Code Card */}
+      {!whatsappStatus.connected && (
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-blue-900">
+              <QrCode className="h-5 w-5" />
+              Conectar WhatsApp
+            </CardTitle>
+            <CardDescription className="text-blue-700">
+              Escaneie o QR Code com seu WhatsApp Business para conectar
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {qrCode ? (
+              <div className="text-center space-y-4">
+                <div className="inline-block p-4 bg-white rounded-lg shadow-sm">
+                  <img 
+                    src={qrCode} 
+                    alt="QR Code WhatsApp" 
+                    className="max-w-xs mx-auto"
+                    style={{ width: '280px', height: '280px' }}
+                  />
+                </div>
+                
+                {connecting ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-center gap-2 text-blue-700">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      <span>Aguardando conexão...</span>
+                    </div>
+                    <p className="text-sm text-blue-600">Escaneie o QR Code com seu WhatsApp</p>
+                  </div>
+                ) : (
+                  <Button onClick={refreshQRCode} disabled={refreshing} className="bg-blue-600 hover:bg-blue-700">
+                    {refreshing ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Gerando...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Gerar Novo QR Code
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="text-center space-y-4">
+                <div className="w-64 h-64 mx-auto bg-gray-100 rounded-lg flex items-center justify-center">
+                  <QrCode className="h-16 w-16 text-gray-400" />
+                </div>
+                <Button onClick={getQRCode} disabled={connecting} className="bg-blue-600 hover:bg-blue-700">
+                  {connecting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Gerando QR Code...
+                    </>
+                  ) : (
+                    <>
+                      <QrCode className="h-4 w-4 mr-2" />
+                      Gerar QR Code
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {/* Instructions */}
+            <div className="bg-white p-4 rounded-lg border">
+              <h3 className="font-medium mb-3">Como conectar:</h3>
+              <ol className="space-y-2 text-sm text-gray-600">
+                <li className="flex items-start gap-2">
+                  <span className="flex-shrink-0 w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-medium">1</span>
+                  Abra o WhatsApp Business no seu celular
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="flex-shrink-0 w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-medium">2</span>
+                  Toque em "Mais opções" (⋮) > "Dispositivos conectados"
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="flex-shrink-0 w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-medium">3</span>
+                  Toque em "Conectar dispositivo"
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="flex-shrink-0 w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-medium">4</span>
+                  Escaneie o QR Code acima
+                </li>
+              </ol>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Configuration Info */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Informações da Integração</CardTitle>
+          <CardDescription>Detalhes técnicos da configuração</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-sm font-medium text-gray-700">Webhook URL</Label>
+              <p className="text-sm text-gray-900 font-mono bg-gray-50 p-2 rounded">
+                https://propbot-mvp.preview.emergentagent.com/api/whatsapp/webhook
+              </p>
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-gray-700">Instância</Label>
+              <p className="text-sm text-gray-900">propbot</p>
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-gray-700">Eventos Habilitados</Label>
+              <p className="text-sm text-gray-900">MESSAGES_UPSERT, CONNECTION_UPDATE</p>
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-gray-700">Servidor Evolution API</Label>
+              <p className="text-sm text-gray-900">https://api.airys.com.br</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [leads, setLeads] = useState([]);
