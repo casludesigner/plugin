@@ -2484,6 +2484,15 @@ const Reports = () => {
 
 // Navigation Component
 const Navigation = () => {
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  
+  // Check if user is super admin (you can implement proper auth later)
+  useEffect(() => {
+    // For now, check if URL contains super-admin or set a flag
+    const urlParams = new URLSearchParams(window.location.search);
+    setIsSuperAdmin(urlParams.get('super') === 'true');
+  }, []);
+
   return (
     <nav className="bg-white border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -2495,24 +2504,44 @@ const Navigation = () => {
             </Link>
           </div>
           <div className="flex items-center space-x-8">
-            <Link to="/" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-              Dashboard
-            </Link>
-            <Link to="/agent" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-              Configurar IA
-            </Link>
-            <Link to="/crm" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-              CRM
-            </Link>
-            <Link to="/live-chat" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-              Chat ao Vivo
-            </Link>
-            <Link to="/whatsapp-config" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-              WhatsApp
-            </Link>
-            <Link to="/reports" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-              Relatórios
-            </Link>
+            {!isSuperAdmin ? (
+              // Menu normal (atual)
+              <>
+                <Link to="/" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                  Dashboard
+                </Link>
+                <Link to="/agent" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                  Configurar IA
+                </Link>
+                <Link to="/crm" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                  CRM
+                </Link>
+                <Link to="/live-chat" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                  Chat ao Vivo
+                </Link>
+                <Link to="/whatsapp-config" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                  WhatsApp
+                </Link>
+                <Link to="/reports" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                  Relatórios
+                </Link>
+                {/* Link secreto para super admin */}
+                <Link to="/super-admin" className="text-gray-400 hover:text-gray-600 px-1 py-2 text-xs">
+                  •••
+                </Link>
+              </>
+            ) : (
+              // Menu super admin
+              <>
+                <Link to="/super-admin" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                  <Crown className="h-4 w-4 inline mr-1" />
+                  Super Admin
+                </Link>
+                <Link to="/" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                  Voltar ao Sistema
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>
