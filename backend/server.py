@@ -659,27 +659,27 @@ async def get_whatsapp_qr():
     Gera QR Code para conectar WhatsApp
     """
     try:
-        import requests
+        import httpx
         
-        # Call Evolution API to get QR code
-        response = requests.get(
-            f"{EVOLUTION_API_URL}/instance/connect/{EVOLUTION_INSTANCE}",
-            headers={"apikey": EVOLUTION_API_KEY}
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            return {
-                "qr_code": data.get("base64", ""),
-                "code": data.get("code", ""),
-                "status": "success"
-            }
-        else:
-            return {"status": "error", "message": "Erro ao gerar QR Code"}
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                f"{EVOLUTION_API_URL}/instance/connect/{EVOLUTION_INSTANCE}",
+                headers={"apikey": EVOLUTION_API_KEY}
+            )
             
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    "qr_code": data.get("base64", ""),
+                    "code": data.get("code", ""),
+                    "status": "success"
+                }
+            else:
+                return {"status": "error", "message": "Erro ao gerar QR Code"}
+                
     except Exception as e:
         logging.error(f"Error getting QR code: {str(e)}")
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": "WhatsApp API temporariamente indisponível"}
 
 @api_router.get("/whatsapp/status")
 async def get_whatsapp_status():
