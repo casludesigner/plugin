@@ -687,44 +687,44 @@ async def get_whatsapp_status():
     Verifica status da conexão WhatsApp
     """
     try:
-        import requests
+        import httpx
         
-        # Check instance status
-        response = requests.get(
-            f"{EVOLUTION_API_URL}/instance/fetchInstances",
-            headers={"apikey": EVOLUTION_API_KEY}
-        )
-        
-        if response.status_code == 200:
-            instances = response.json()
-            propbot_instance = None
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                f"{EVOLUTION_API_URL}/instance/fetchInstances",
+                headers={"apikey": EVOLUTION_API_KEY}
+            )
             
-            for instance in instances:
-                if instance.get("name") == EVOLUTION_INSTANCE:
-                    propbot_instance = instance
-                    break
-            
-            if propbot_instance:
-                status = propbot_instance.get("connectionStatus", "close")
-                profile_name = propbot_instance.get("profileName", "")
-                owner_jid = propbot_instance.get("ownerJid", "")
-                phone = owner_jid.replace("@s.whatsapp.net", "") if owner_jid else ""
+            if response.status_code == 200:
+                instances = response.json()
+                propbot_instance = None
                 
-                return {
-                    "status": "success",
-                    "connected": status == "open",
-                    "connection_status": status,
-                    "profile_name": profile_name,
-                    "phone": phone
-                }
+                for instance in instances:
+                    if instance.get("name") == EVOLUTION_INSTANCE:
+                        propbot_instance = instance
+                        break
+                
+                if propbot_instance:
+                    status = propbot_instance.get("connectionStatus", "close")
+                    profile_name = propbot_instance.get("profileName", "")
+                    owner_jid = propbot_instance.get("ownerJid", "")
+                    phone = owner_jid.replace("@s.whatsapp.net", "") if owner_jid else ""
+                    
+                    return {
+                        "status": "success",
+                        "connected": status == "open",
+                        "connection_status": status,
+                        "profile_name": profile_name,
+                        "phone": phone
+                    }
+                else:
+                    return {"status": "error", "message": "Instância não encontrada"}
             else:
-                return {"status": "error", "message": "Instância não encontrada"}
-        else:
-            return {"status": "error", "message": "Erro ao verificar status"}
-            
+                return {"status": "error", "message": "API temporariamente indisponível"}
+                
     except Exception as e:
         logging.error(f"Error checking WhatsApp status: {str(e)}")
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": "WhatsApp API temporariamente indisponível"}
 
 @api_router.post("/whatsapp/send-message")
 async def send_message_to_whatsapp(request_body: dict):
