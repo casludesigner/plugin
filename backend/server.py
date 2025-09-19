@@ -681,15 +681,32 @@ async def get_whatsapp_qr():
         logging.error(f"Error getting QR code: {str(e)}")
         return {"status": "error", "message": "WhatsApp API temporariamente indisponível"}
 
+# Cache para WhatsApp status (evitar chamadas frequentes)
+whatsapp_status_cache = {
+    "data": None,
+    "timestamp": None,
+    "cache_duration": 60  # 60 segundos de cache
+}
+
 @api_router.get("/whatsapp/status")
 async def get_whatsapp_status():
     """
-    Verifica status da conexão WhatsApp
+    Verifica status da conexão WhatsApp com cache
     """
     try:
         import httpx
+        from datetime import datetime, timezone
         
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        # Check cache first
+        now = datetime.now(timezone.utc)
+        if (whatsapp_status_cache["data"] and 
+            whatsapp_status_cache["timestamp"] and
+            (now - whatsapp_status_cache["timestamp"]).total_seconds() < whatsapp_status_cache["cache_duration"]):
+            
+            logging.info("Returning cached WhatsApp status")
+            return whatsapp_status_cache["data"]
+        
+        async with httpx.AsyncClient(timeout=5.0) as client:  # Reduced timeout
             response = await client.get(
                 f"{EVOLUTION_API_URL}/instance/fetchInstances",
                 headers={"apikey": EVOLUTION_API_KEY}
@@ -710,20 +727,33 @@ async def get_whatsapp_status():
                     owner_jid = propbot_instance.get("ownerJid", "")
                     phone = owner_jid.replace("@s.whatsapp.net", "") if owner_jid else ""
                     
-                    return {
+                    result = {
                         "status": "success",
                         "connected": status == "open",
                         "connection_status": status,
                         "profile_name": profile_name,
                         "phone": phone
                     }
+                    
+                    # Update cache
+                    whatsapp_status_cache["data"] = result
+                    whatsapp_status_cache["timestamp"] = now
+                    
+                    return result
                 else:
                     return {"status": "error", "message": "Instância não encontrada"}
             else:
                 return {"status": "error", "message": "API temporariamente indisponível"}
                 
+    except httpx.TimeoutException:
+        logging.warning("WhatsApp API timeout - returning cached data if available")
+        if whatsapp_status_cache["data"]:
+            return whatsapp_status_cache["data"]
+        return {"status": "error", "message": "WhatsApp API timeout - tente novamente"}
     except Exception as e:
         logging.error(f"Error checking WhatsApp status: {str(e)}")
+        if whatsapp_status_cache["data"]:
+            return whatsapp_status_cache["data"]
         return {"status": "error", "message": "WhatsApp API temporariamente indisponível"}
 
 @api_router.post("/whatsapp/send-message")
