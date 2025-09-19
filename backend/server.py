@@ -1290,10 +1290,10 @@ async def generate_ai_response_whatsapp(lead_id: str, user_message: str):
 
 async def send_whatsapp_message(lead_id: str, message: str):
     """
-    Envia mensagem para WhatsApp via Evolution API com validação melhorada
+    Envia mensagem para WhatsApp via Evolution API com timeout adequado
     """
     try:
-        import requests
+        import httpx
         
         # Get lead phone
         lead = await db.leads.find_one({"id": lead_id})
@@ -1309,65 +1309,63 @@ async def send_whatsapp_message(lead_id: str, message: str):
         # Validate and format phone number
         is_valid, formatted_phone = validate_whatsapp_phone(phone)
         if not is_valid:
-            logging.error(f"Invalid phone number format: {phone} -> {formatted_phone}")
-            # For testing, we'll still try to send but log the warning
-            logging.warning(f"Attempting to send to potentially invalid number: {formatted_phone}")
+            logging.warning(f"Potentially invalid phone number: {phone} -> {formatted_phone}")
         
         logging.info(f"Sending WhatsApp message to {formatted_phone} for lead {lead_id}")
         
-        # Send via Evolution API
-        response = requests.post(
-            f"{EVOLUTION_API_URL}/message/sendText/{EVOLUTION_INSTANCE}",
-            headers={
-                "apikey": EVOLUTION_API_KEY,
-                "Content-Type": "application/json"
-            },
-            json={
-                "number": formatted_phone,
-                "text": message
-            },
-            timeout=30
-        )
-        
-        if response.status_code == 201:
-            logging.info(f"WhatsApp message sent successfully to {formatted_phone}")
-            
-            # Save outgoing message to database
-            outgoing_message = ChatMessage(
-                lead_id=lead_id,
-                sender='human',
-                sender_name='Atendente',
-                message=message,
-                channel='whatsapp'
+        # Send via Evolution API with proper async/await and timeout
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{EVOLUTION_API_URL}/message/sendText/{EVOLUTION_INSTANCE}",
+                headers={
+                    "apikey": EVOLUTION_API_KEY,
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "number": formatted_phone,
+                    "text": message
+                }
             )
-            message_data = prepare_for_mongo(outgoing_message.dict())
-            await db.messages.insert_one(message_data)
             
-        else:
-            error_msg = f"Error sending WhatsApp message: HTTP {response.status_code} - {response.text}"
-            logging.error(error_msg)
-            
-            # Try with original phone format as fallback
-            if formatted_phone != phone:
-                logging.info(f"Retrying with original phone format: {phone}")
-                response = requests.post(
-                    f"{EVOLUTION_API_URL}/message/sendText/{EVOLUTION_INSTANCE}",
-                    headers={
-                        "apikey": EVOLUTION_API_KEY,
-                        "Content-Type": "application/json"
-                    },
-                    json={
-                        "number": phone,
-                        "text": message
-                    },
-                    timeout=30
-                )
+            if response.status_code == 201:
+                logging.info(f"WhatsApp message sent successfully to {formatted_phone}")
                 
-                if response.status_code == 201:
-                    logging.info(f"WhatsApp message sent successfully with original format to {phone}")
-                else:
-                    logging.error(f"Failed with both formats. Original: {phone}, Formatted: {formatted_phone}")
+                # Save outgoing message to database
+                outgoing_message = ChatMessage(
+                    lead_id=lead_id,
+                    sender='human',
+                    sender_name='Atendente',
+                    message=message,
+                    channel='whatsapp'
+                )
+                message_data = prepare_for_mongo(outgoing_message.dict())
+                await db.messages.insert_one(message_data)
+                
+            else:
+                logging.error(f"Error sending WhatsApp message: HTTP {response.status_code}")
+                
+                # Try with original phone format as fallback
+                if formatted_phone != phone:
+                    logging.info(f"Retrying with original phone format: {phone}")
+                    response = await client.post(
+                        f"{EVOLUTION_API_URL}/message/sendText/{EVOLUTION_INSTANCE}",
+                        headers={
+                            "apikey": EVOLUTION_API_KEY,
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "number": phone,
+                            "text": message
+                        }
+                    )
+                    
+                    if response.status_code == 201:
+                        logging.info(f"WhatsApp message sent successfully with original format to {phone}")
+                    else:
+                        logging.error(f"Failed with both formats. Original: {phone}, Formatted: {formatted_phone}")
         
+    except httpx.TimeoutException:
+        logging.error(f"WhatsApp API timeout for lead {lead_id} - message not sent")
     except Exception as e:
         logging.error(f"Error sending WhatsApp message: {str(e)}")
         raise
