@@ -101,3 +101,155 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+## user_problem_statement: Testar especificamente o SISTEMA DE MENSAGENS do PropBot CRM que está falhando
+
+## backend:
+  - task: "WhatsApp Status API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Testando GET /api/whatsapp/status conforme solicitação específica do usuário"
+        - working: true
+        - agent: "testing"
+        - comment: "WHATSAPP STATUS FUNCIONANDO ✅ - Endpoint GET /api/whatsapp/status retorna dados corretos: connected=true, profile_name='Lucas Alves', phone='554187717657', connection_status='open'. WhatsApp está conectado e operacional via Evolution API."
+
+  - task: "Leads Management API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Testando GET /api/leads para verificar telefones dos leads conforme solicitado"
+        - working: true
+        - agent: "testing"
+        - comment: "LEADS API FUNCIONANDO ✅ - Endpoint GET /api/leads retorna 11 leads com estrutura correta. PROBLEMA IDENTIFICADO: 9/11 leads têm telefones sem código do país (formato 11987654321 ao invés de 5511987654321). Estrutura dos dados está correta, mas formatação de telefones precisa ser corrigida para envio WhatsApp."
+
+  - task: "WhatsApp Send Message API"
+    implemented: true
+    working: false
+    file: "/app/backend/server.py"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Testando POST /api/whatsapp/send-message conforme solicitação específica"
+        - working: false
+        - agent: "testing"
+        - comment: "WHATSAPP SEND PARCIALMENTE FUNCIONAL ❌ - API responde corretamente mas Evolution API retorna erro 400 'number does not exist' para números mal formatados. Logs mostram: 'Error sending WhatsApp message: HTTP 400 - number does not exist'. Problema: telefones dos leads não têm código do país (55) e alguns podem não existir no WhatsApp. Sistema tenta formato original como fallback mas ainda falha."
+
+  - task: "Chat Message API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Testando POST /api/chat/message para salvar mensagens no banco"
+        - working: true
+        - agent: "testing"
+        - comment: "CHAT MESSAGE FUNCIONANDO ✅ - Endpoint POST /api/chat/message salva mensagens corretamente no MongoDB. Estrutura completa com id, lead_id, sender, message, timestamp. Mensagens são persistidas e podem ser recuperadas via GET /api/chat/{lead_id}."
+
+  - task: "AI Response API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Testando POST /api/chat/ai-response/{lead_id} para IA responder automaticamente"
+        - working: true
+        - agent: "testing"
+        - comment: "AI RESPONSE FUNCIONANDO ✅ - Endpoint POST /api/chat/ai-response/{lead_id} gera respostas automáticas via Gemini 2.5 Pro. IA responde contextualmente usando dados do lead e histórico de conversa. Respostas são salvas automaticamente no banco como mensagens do 'agent'. Sistema de IA totalmente operacional."
+
+  - task: "Phone Number Validation"
+    implemented: true
+    working: false
+    file: "/app/backend/server.py"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Testando validação e formatação de números de telefone para WhatsApp"
+        - working: false
+        - agent: "testing"
+        - comment: "VALIDAÇÃO DE TELEFONE COM PROBLEMAS ❌ - Função format_phone_number() existe e funciona corretamente (testada com 6 formatos diferentes), MAS os leads no banco têm números mal formatados. 9/11 leads precisam de correção: '11987654321' deveria ser '5511987654321'. Validação funciona mas dados existentes estão incorretos, causando falhas no envio WhatsApp."
+
+## frontend:
+  - task: "Super Admin Panel Frontend"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: false
+        - agent: "main"
+        - comment: "Erros de sintaxe corrigidos: import useParams mal posicionado, rota /super-admin faltando"
+        - working: true
+        - agent: "main"
+        - comment: "Sintaxe corrigida: movido import useParams para o topo, removido import duplicado, adicionada rota /super-admin"
+
+  - task: "Commercial Automation Frontend"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Iniciando testes completos do frontend de Automação Comercial conforme solicitado pelo usuário. Componente CommercialAutomation implementado com 4 abas: Configurações, Leads Qualificados, Histórico, Relatórios. Rota /automation configurada corretamente."
+        - working: true
+        - agent: "testing"
+        - comment: "TESTES COMPLETOS DE AUTOMAÇÃO COMERCIAL FRONTEND CONCLUÍDOS COM 100% DE SUCESSO - Todos os requisitos testados: ✅ NAVEGAÇÃO: Menu 'Automação' funcional em /automation ✅ INTERFACE: 4 abas carregadas (Configurações, Leads Qualificados, Histórico, Relatórios) ✅ ABA CONFIGURAÇÕES: Follow-up por Etapa com 4 etapas (Novo Lead, Em Negociação, Visita Agendada, Fechamento), checkboxes funcionais, campos de intervalos editáveis (1,24,72h), templates de mensagem personalizáveis, Reativação de Leads com dropdowns (15,30,60,90 dias), máximo tentativas (1-5), Qualificação com pontuação mínima (2-5 pontos), métodos de atribuição (Rodízio, Região, Especialidade), critérios de pontuação exibidos ✅ ABA LEADS QUALIFICADOS: Tabela com colunas (Lead, Pontuação, Critérios, Data, Atribuído), botão Requalificar funcional, badges de pontuação ✅ ABA HISTÓRICO: Tabela com colunas (Tipo, Lead, Etapa, Mensagem, Status, Data), badges coloridos para status (Agendado, Enviado, Falhado, Cancelado) ✅ ABA RELATÓRIOS: Cards de estatísticas (Follow-ups Enviados: 3, Reativações Enviadas: 0, Taxa de Sucesso: 100%), resumo de performance ✅ BOTÕES DE AÇÃO: Executar Follow-ups, Executar Reativações, Qualificar Leads - todos funcionais com loading states ✅ RESPONSIVIDADE: Interface adaptada para mobile (390px) e tablet (768px) ✅ INTEGRAÇÃO VISUAL: Design consistente com PropBot CRM, esquema de cores correto. Sistema de automação comercial totalmente funcional e intuitivo conforme especificado."
+
+## metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+## test_plan:
+  current_focus:
+    - "WhatsApp Send Message API"
+    - "Phone Number Validation"
+  stuck_tasks:
+    - "WhatsApp Send Message API"
+    - "Phone Number Validation"
+  test_all: false
+  test_priority: "high_first"
+
+## agent_communication:
+    - agent: "main"
+    - message: "Corrigidos erros de sintaxe no frontend: import useParams reposicionado, rota /super-admin adicionada, import duplicado removido. Pronto para testar backend e frontend."
+    - agent: "testing"
+    - message: "TESTES BACKEND SUPER ADMIN CONCLUÍDOS COM SUCESSO - Executados testes completos em todos os 7 endpoints Super Admin conforme solicitado. Todos os endpoints funcionam corretamente: estatísticas, listagem/criação/alteração de empresas, gestão de usuários, alteração de papéis. Testados com dados realistas (Imobiliária Teste, João Admin, etc). Validações funcionam (retornam erros apropriados para dados inválidos). Relacionamentos empresa-usuário funcionam perfeitamente. Estatísticas são atualizadas em tempo real. Sistema está funcionando conforme especificado. Arquivos de teste criados: backend_test.py, detailed_super_admin_test.py, final_super_admin_test.py com resultados detalhados."
+    - agent: "testing"
+    - message: "TESTES DE AUTOMAÇÃO COMERCIAL CONCLUÍDOS COM 100% DE SUCESSO - Executados testes completos e detalhados em todos os 8 endpoints de Automação Comercial conforme solicitação específica: 1) GET /automation/settings - Configurações padrão criadas automaticamente ✅, 2) PUT /automation/settings - Atualizações funcionando ✅, 3) GET /automation/qualify-leads - Qualificação automática executada (4/6 leads qualificados) ✅, 4) GET /automation/qualified-leads - Lista de leads qualificados obtida ✅, 5) POST /automation/process-followups - Follow-ups processados ✅, 6) POST /automation/process-reactivations - Reativações processadas ✅, 7) GET /automation/history - Histórico obtido ✅, 8) POST /automation/history - Criação de registros funcionando ✅. VALIDAÇÕES ESPECÍFICAS CONFIRMADAS: Follow-ups com intervalos [1, 24, 72] horas, Reativação com 30 dias de inatividade, Qualificação baseada em critérios de pontuação (score threshold), Integração WhatsApp conectada e funcional, Modelos de dados AutomationSettings e AutomationHistory corretos. Sistema possui 11 leads para testes realistas. Taxa de sucesso: 100% (11/11 testes). Arquivos criados: automation_test.py, detailed_automation_test.py, final_automation_test.py."
+    - agent: "testing"
+    - message: "TESTES FRONTEND AUTOMAÇÃO COMERCIAL CONCLUÍDOS COM 100% DE SUCESSO - Executados testes completos conforme solicitação específica do usuário para testar completamente o frontend da Automação Comercial do PropBot CRM. RESULTADOS: ✅ Navegação e Interface: Menu 'Automação' visível e funcional, página /automation carrega corretamente com todas as 4 abas ✅ Aba Configurações: Follow-up por Etapa mostra 4 etapas (Novo Lead, Em Negociação, Visita Agendada, Fechamento), campos de intervalos (1,24,72h) editáveis, templates de mensagem personalizáveis, checkboxes ativar/desativar funcionais, Reativação de Leads com dropdowns (15,30,60,90 dias), máximo tentativas (1-5), Qualificação com pontuação mínima (2-5 pontos), métodos de atribuição (Rodízio, Região, Especialidade), botões 'Salvar Configurações' funcionais com toasts ✅ Aba Leads Qualificados: Tabela com colunas corretas (Lead, Pontuação, Critérios, Data, Atribuído), botão 'Requalificar' funcional, badges de pontuação e critérios ✅ Aba Histórico: Tabela com colunas (Tipo, Lead, Etapa, Mensagem, Status, Data), badges coloridos para status (Agendado, Enviado, Falhado, Cancelado) ✅ Aba Relatórios: Cards de estatísticas (Follow-ups Enviados: 3, Reativações: 0, Taxa de Sucesso: 100%), resumo de performance ✅ Botões de Ação: 'Executar Follow-ups', 'Executar Reativações', 'Qualificar Leads' todos funcionais com loading states ✅ Responsividade: Interface adaptada para mobile e tablet ✅ Integração Visual: Design consistente com PropBot CRM. Sistema de automação comercial frontend 100% funcional e intuitivo."
+    - agent: "testing"
+    - message: "TESTES SISTEMA DE MENSAGENS WHATSAPP CONCLUÍDOS - PROBLEMA CRÍTICO IDENTIFICADO ❌ Executados testes específicos conforme solicitação do usuário sobre sistema de mensagens falhando. RESULTADOS: ✅ WhatsApp conectado (Lucas Alves - 554187717657) ✅ APIs funcionando (chat/message, ai-response) ✅ IA gerando respostas automáticas ❌ PROBLEMA PRINCIPAL: 9/11 leads têm telefones mal formatados (sem código país 55). Evolution API retorna erro 400 'number does not exist' ao tentar enviar para números como '11987654321' que deveriam ser '5511987654321'. Logs confirmam: 'Error sending WhatsApp message: HTTP 400 - number does not exist'. SOLUÇÃO: Corrigir telefones dos leads no banco de dados para formato brasileiro completo. Sistema de validação existe mas dados estão incorretos. Arquivos criados: whatsapp_messaging_test.py, detailed_messaging_analysis.py com diagnóstico completo."

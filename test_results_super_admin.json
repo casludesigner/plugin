@@ -1,0 +1,82 @@
+[
+  {
+    "test": "GET /super-admin/stats",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Estatísticas obtidas: 1 empresas, 1 usuários",
+    "timestamp": "2025-09-16T14:33:15.459797",
+    "response_data": null
+  },
+  {
+    "test": "GET /super-admin/companies",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Lista de empresas obtida com 1 empresas",
+    "timestamp": "2025-09-16T14:33:15.468789",
+    "response_data": null
+  },
+  {
+    "test": "Estrutura da empresa",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Estrutura correta",
+    "timestamp": "2025-09-16T14:33:15.468837",
+    "response_data": null
+  },
+  {
+    "test": "POST /super-admin/companies",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Empresa criada com ID: b3b24e8d-d487-4ded-915d-9e77c3ef93a9",
+    "timestamp": "2025-09-16T14:33:15.477672",
+    "response_data": null
+  },
+  {
+    "test": "PUT /super-admin/companies/{id}/status",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Status alterado: Status alterado para inativa",
+    "timestamp": "2025-09-16T14:33:15.486680",
+    "response_data": null
+  },
+  {
+    "test": "GET /super-admin/companies/{id}/users",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Lista de usuários obtida com 0 usuários",
+    "timestamp": "2025-09-16T14:33:15.585056",
+    "response_data": null
+  },
+  {
+    "test": "POST /super-admin/users",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Usuário criado com ID: efeccd3c-379f-4c04-9ba0-045be01d276f",
+    "timestamp": "2025-09-16T14:33:15.598661",
+    "response_data": null
+  },
+  {
+    "test": "PUT /super-admin/users/{id}/role",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Papel alterado: Papel alterado para gestor",
+    "timestamp": "2025-09-16T14:33:15.608558",
+    "response_data": null
+  },
+  {
+    "test": "Validação - Empresa inexistente",
+    "status": "❌ FALHOU",
+    "success": false,
+    "details": "Deveria retornar 404/500, mas retornou 200",
+    "timestamp": "2025-09-16T14:33:15.685158",
+    "response_data": null
+  },
+  {
+    "test": "Validação - Status inválido",
+    "status": "❌ FALHOU",
+    "success": false,
+    "details": "Deveria retornar 400, mas retornou 500",
+    "timestamp": "2025-09-16T14:33:15.691673",
+    "response_data": null
+  }
+]

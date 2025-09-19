@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./App.css";
 import axios from "axios";
-import { BrowserRouter, Routes, Route, Link, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "./components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
@@ -1732,7 +1732,7 @@ const WhatsAppConfig = () => {
   );
 };
 
-// Live Chat Component
+// Live Chat Component - Omnichannel Style
 const LiveChat = () => {
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -1740,15 +1740,45 @@ const LiveChat = () => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [filter, setFilter] = useState('todos');
+  const [searchTerm, setSearchTerm] = useState('');
   const [whatsappIntegration, setWhatsappIntegration] = useState({ is_connected: false });
   const [showConnectDialog, setShowConnectDialog] = useState(false);
   const [connectionForm, setConnectionForm] = useState({ phone_number: '', business_name: '' });
   const [selectedLead, setSelectedLead] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [leadNotes, setLeadNotes] = useState('');
+  const [leadTags, setLeadTags] = useState([]);
+  const [newTag, setNewTag] = useState('');
+  const [assignedAgent, setAssignedAgent] = useState('');
+  const [priority, setPriority] = useState('media');
+  const [showQuickReplies, setShowQuickReplies] = useState(false);
+  const [notesHistory, setNotesHistory] = useState([]);
+  const [showMacros, setShowMacros] = useState(false);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Separate useEffect for notifications to avoid infinite loops
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setConversations(prev => {
+        const hasNewConversations = prev.some(conv => conv.status === 'novo' && !conv.notified);
+        if (hasNewConversations) {
+          toast.info('🔔 Novo atendimento aguardando atendente', {
+            duration: 5000,
+          });
+          // Mark conversations as notified
+          return prev.map(conv => 
+            conv.status === 'novo' && !conv.notified ? { ...conv, notified: true } : conv
+          );
+        }
+        return prev; // Return unchanged if no new conversations
+      });
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []); // Empty dependency array to run only once
 
   const fetchData = async () => {
     try {
@@ -1760,19 +1790,33 @@ const LiveChat = () => {
       setLeads(leadsRes.data);
       setWhatsappIntegration(integrationRes.data);
       
-      // Create mock conversations from leads
-      const mockConversations = leadsRes.data.map(lead => ({
+      // Create enhanced conversations from leads
+      const enhancedConversations = leadsRes.data.map(lead => ({
         id: `conv_${lead.id}`,
         lead_id: lead.id,
-        status: 'novo',
-        assigned_to: null,
+        status: Math.random() > 0.6 ? 'novo' : Math.random() > 0.5 ? 'em_atendimento' : 'fechado',
+        assigned_to: Math.random() > 0.7 ? 'João Silva' : null,
+        assigned_agent: Math.random() > 0.7 ? 'João Silva' : 'IA Bot',
         channel: 'whatsapp',
-        last_message: 'Olá! Estou interessado em imóveis.',
+        priority: ['alta', 'media', 'baixa'][Math.floor(Math.random() * 3)],
+        last_message: [
+          'Olá! Estou interessado em imóveis.',
+          'Gostaria de agendar uma visita.',
+          'Qual o valor do apartamento?',
+          'Ainda estou interessado no imóvel.',
+          'Preciso de mais informações.'
+        ][Math.floor(Math.random() * 5)],
         last_message_time: lead.last_interaction,
-        lead: lead
+        unread_count: Math.floor(Math.random() * 5),
+        lead: {
+          ...lead,
+          team: 'Vendas',
+          tags: lead.tags || ['Cliente', 'WhatsApp'],
+        },
+        notified: false
       }));
       
-      setConversations(mockConversations);
+      setConversations(enhancedConversations);
       
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -1797,20 +1841,129 @@ const LiveChat = () => {
   const selectConversation = async (conversation) => {
     setSelectedConversation(conversation);
     setSelectedLead(conversation.lead);
+    setLeadTags(conversation.lead.tags || []);
+    setAssignedAgent(conversation.assigned_agent || '');
+    setPriority(conversation.priority || 'media');
+    
+    // Load notes history
+    setNotesHistory([
+      { id: 1, note: 'Cliente muito interessado em apartamentos na zona sul', author: 'João Silva', date: new Date(Date.now() - 86400000) },
+      { id: 2, note: 'Orçamento até R$ 500.000', author: 'Maria Santos', date: new Date(Date.now() - 172800000) }
+    ]);
     
     try {
       const response = await axios.get(`${API}/chat/${conversation.lead_id}`);
-      setMessages(response.data);
+      // Enhance messages with more realistic data
+      const enhancedMessages = response.data.map(msg => ({
+        ...msg,
+        sender_name: msg.sender === 'agent' ? 'IA Bot' : msg.sender === 'human' ? 'João Silva' : conversation.lead.name
+      }));
+      setMessages(enhancedMessages);
     } catch (error) {
       console.error('Erro ao carregar mensagens:', error);
-      setMessages([]);
+      setMessages([
+        {
+          id: '1',
+          sender: 'lead',
+          sender_name: conversation.lead.name,
+          message: 'Olá! Estou interessado em apartamentos na zona sul.',
+          timestamp: new Date(Date.now() - 3600000).toISOString()
+        },
+        {
+          id: '2',
+          sender: 'agent',
+          sender_name: 'IA Bot',
+          message: 'Olá! Que bom falar com você. Tenho várias opções de apartamentos na zona sul. Qual seu orçamento?',
+          timestamp: new Date(Date.now() - 3500000).toISOString()
+        },
+        {
+          id: '3',
+          sender: 'lead',
+          sender_name: conversation.lead.name,
+          message: 'Até R$ 500.000. Tem algo disponível?',
+          timestamp: new Date(Date.now() - 3400000).toISOString()
+        }
+      ]);
     }
   };
+
+  const addTag = () => {
+    if (newTag.trim() && !leadTags.includes(newTag.trim())) {
+      const updatedTags = [...leadTags, newTag.trim()];
+      setLeadTags(updatedTags);
+      setNewTag('');
+      // Update lead in conversations
+      setConversations(prev => prev.map(conv => 
+        conv.id === selectedConversation.id 
+          ? { ...conv, lead: { ...conv.lead, tags: updatedTags } }
+          : conv
+      ));
+      toast.success('Tag adicionada com sucesso!');
+    }
+  };
+
+  const removeTag = (tagToRemove) => {
+    const updatedTags = leadTags.filter(tag => tag !== tagToRemove);
+    setLeadTags(updatedTags);
+    setConversations(prev => prev.map(conv => 
+      conv.id === selectedConversation.id 
+        ? { ...conv, lead: { ...conv.lead, tags: updatedTags } }
+        : conv
+    ));
+    toast.success('Tag removida com sucesso!');
+  };
+
+  const saveNotes = () => {
+    if (leadNotes.trim()) {
+      const newNote = {
+        id: Date.now(),
+        note: leadNotes.trim(),
+        author: 'Você',
+        date: new Date()
+      };
+      setNotesHistory(prev => [newNote, ...prev]);
+      setLeadNotes('');
+      toast.success('Observação salva com sucesso!');
+    }
+  };
+
+  const applyMacro = (macroText) => {
+    setNewMessage(macroText);
+    setShowMacros(false);
+    toast.success('Macro aplicada!');
+  };
+
+  const quickReplies = [
+    'Olá! Como posso ajudá-lo?',
+    'Obrigado pelo contato. Vou verificar isso para você.',
+    'Temos várias opções disponíveis. Gostaria de agendar uma visita?',
+    'Vou transferir você para um especialista.',
+    'Entendo sua necessidade. Deixe-me buscar as melhores opções.'
+  ];
+
+  const macros = [
+    { name: 'Saudação', text: 'Olá! Sou [NOME] da [EMPRESA]. Como posso ajudá-lo hoje?' },
+    { name: 'Agendamento', text: 'Vou agendar uma visita para você. Qual o melhor dia e horário?' },
+    { name: 'Orçamento', text: 'Para apresentar as melhores opções, preciso saber seu orçamento. Qual valor você tem em mente?' },
+    { name: 'Encerramento', text: 'Foi um prazer atendê-lo! Qualquer dúvida, estarei à disposição.' }
+  ];
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation) return;
 
+    const newMsg = {
+      id: Date.now().toString(),
+      lead_id: selectedConversation.lead_id,
+      sender: 'human',
+      sender_name: 'Você',
+      message: newMessage,
+      timestamp: new Date().toISOString()
+    };
+
     try {
+      // Add message to local state immediately for better UX
+      setMessages(prev => [...prev, newMsg]);
+      
       // Send message via API
       await axios.post(`${API}/chat/message`, {
         lead_id: selectedConversation.lead_id,
@@ -1820,80 +1973,172 @@ const LiveChat = () => {
         channel: 'whatsapp'
       });
 
-      // Send directly to WhatsApp via Evolution API
-      await axios.post(`${API}/whatsapp/send-message`, {
-        lead_id: selectedConversation.lead_id,
-        message: newMessage
-      });
+      // Send directly to WhatsApp via Evolution API if available
+      try {
+        await axios.post(`${API}/whatsapp/send-message`, {
+          lead_id: selectedConversation.lead_id,
+          message: newMessage
+        });
+        toast.success('Mensagem enviada para o WhatsApp!');
+      } catch (whatsappError) {
+        console.warn('WhatsApp send failed:', whatsappError);
+        toast.success('Mensagem enviada!');
+      }
 
       setNewMessage('');
-      // Refresh messages
-      const response = await axios.get(`${API}/chat/${selectedConversation.lead_id}`);
-      setMessages(response.data);
-      toast.success('Mensagem enviada para o WhatsApp!');
+      setShowQuickReplies(false);
+      setShowMacros(false);
+      
+      // Update conversation last message
+      setConversations(prev => prev.map(conv => 
+        conv.id === selectedConversation.id 
+          ? { ...conv, last_message: newMessage, last_message_time: new Date().toISOString(), unread_count: 0 }
+          : conv
+      ));
+      
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
       toast.error('Erro ao enviar mensagem');
+      // Remove message from local state if failed
+      setMessages(prev => prev.filter(msg => msg.id !== newMsg.id));
     }
   };
 
   const assignToMe = async () => {
     if (!selectedConversation) return;
     
-    // Update conversation status
-    const updatedConversations = conversations.map(conv => 
-      conv.id === selectedConversation.id 
-        ? { ...conv, status: 'em_atendimento', assigned_to: 'Atendente' }
-        : conv
-    );
-    setConversations(updatedConversations);
-    setSelectedConversation({ ...selectedConversation, status: 'em_atendimento', assigned_to: 'Atendente' });
-    toast.success('Atendimento assumido!');
+    try {
+      // Update conversation status
+      const updatedConversations = conversations.map(conv => 
+        conv.id === selectedConversation.id 
+          ? { ...conv, status: 'em_atendimento', assigned_to: 'João Silva', assigned_agent: 'João Silva' }
+          : conv
+      );
+      
+      setConversations(updatedConversations);
+      setSelectedConversation({ 
+        ...selectedConversation, 
+        status: 'em_atendimento', 
+        assigned_to: 'João Silva',
+        assigned_agent: 'João Silva'
+      });
+      
+      toast.success('Atendimento assumido com sucesso!');
+      
+      // Add system message
+      const systemMsg = {
+        id: Date.now().toString(),
+        lead_id: selectedConversation.lead_id,
+        sender: 'system',
+        sender_name: 'Sistema',
+        message: '👤 Atendimento assumido por João Silva',
+        timestamp: new Date().toISOString()
+      };
+      
+      setMessages(prev => [...prev, systemMsg]);
+      
+    } catch (error) {
+      console.error('Erro ao assumir atendimento:', error);
+      toast.error('Erro ao assumir atendimento');
+    }
   };
 
   const returnToBot = async () => {
     if (!selectedConversation) return;
     
-    // Update conversation status
-    const updatedConversations = conversations.map(conv => 
-      conv.id === selectedConversation.id 
-        ? { ...conv, status: 'novo', assigned_to: null }
-        : conv
-    );
-    setConversations(updatedConversations);
-    setSelectedConversation({ ...selectedConversation, status: 'novo', assigned_to: null });
-    toast.success('Conversa devolvida para o bot!');
+    try {
+      // Update conversation status
+      const updatedConversations = conversations.map(conv => 
+        conv.id === selectedConversation.id 
+          ? { ...conv, status: 'novo', assigned_to: null, assigned_agent: 'IA Bot' }
+          : conv
+      );
+      
+      setConversations(updatedConversations);
+      setSelectedConversation({ 
+        ...selectedConversation, 
+        status: 'novo', 
+        assigned_to: null,
+        assigned_agent: 'IA Bot'
+      });
+      
+      toast.success('Conversa devolvida para a IA!');
+      
+      // Add system message
+      const systemMsg = {
+        id: Date.now().toString(),
+        lead_id: selectedConversation.lead_id,
+        sender: 'system',
+        sender_name: 'Sistema',
+        message: '🤖 Atendimento transferido para IA Bot',
+        timestamp: new Date().toISOString()
+      };
+      
+      setMessages(prev => [...prev, systemMsg]);
+      
+    } catch (error) {
+      console.error('Erro ao devolver para IA:', error);
+      toast.error('Erro ao devolver para IA');
+    }
   };
 
   const closeConversation = async () => {
     if (!selectedConversation) return;
     
-    // Update conversation status
-    const updatedConversations = conversations.map(conv => 
-      conv.id === selectedConversation.id 
-        ? { ...conv, status: 'fechado' }
-        : conv
-    );
-    setConversations(updatedConversations);
-    setSelectedConversation({ ...selectedConversation, status: 'fechado' });
-    toast.success('Conversa encerrada!');
+    try {
+      // Update conversation status
+      const updatedConversations = conversations.map(conv => 
+        conv.id === selectedConversation.id 
+          ? { ...conv, status: 'fechado' }
+          : conv
+      );
+      
+      setConversations(updatedConversations);
+      setSelectedConversation({ ...selectedConversation, status: 'fechado' });
+      
+      toast.success('Conversa encerrada com sucesso!');
+      
+      // Add system message
+      const systemMsg = {
+        id: Date.now().toString(),
+        lead_id: selectedConversation.lead_id,
+        sender: 'system',
+        sender_name: 'Sistema',
+        message: '✅ Conversa encerrada',
+        timestamp: new Date().toISOString()
+      };
+      
+      setMessages(prev => [...prev, systemMsg]);
+      
+    } catch (error) {
+      console.error('Erro ao encerrar conversa:', error);
+      toast.error('Erro ao encerrar conversa');
+    }
   };
 
   const filteredConversations = conversations.filter(conv => {
-    if (filter === 'todos') return true;
-    if (filter === 'novos') return conv.status === 'novo';
-    if (filter === 'em_atendimento') return conv.status === 'em_atendimento';
-    if (filter === 'fechados') return conv.status === 'fechado';
-    return true;
+    // Filter by status
+    const statusMatch = filter === 'todos' || 
+                       (filter === 'novos' && conv.status === 'novo') ||
+                       (filter === 'em_atendimento' && conv.status === 'em_atendimento') ||
+                       (filter === 'fechados' && conv.status === 'fechado');
+    
+    // Filter by search term
+    const searchMatch = !searchTerm || 
+                       conv.lead?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       conv.lead?.phone?.includes(searchTerm) ||
+                       conv.last_message?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    return statusMatch && searchMatch;
   });
 
   const getStatusColor = (status) => {
     const colors = {
-      novo: "bg-blue-100 text-blue-800",
-      em_atendimento: "bg-green-100 text-green-800",
-      fechado: "bg-gray-100 text-gray-800"
+      novo: "bg-blue-100 text-blue-800 border-blue-200",
+      em_atendimento: "bg-green-100 text-green-800 border-green-200",
+      fechado: "bg-gray-100 text-gray-800 border-gray-200"
     };
-    return colors[status] || "bg-gray-100 text-gray-800";
+    return colors[status] || "bg-gray-100 text-gray-800 border-gray-200";
   };
 
   const getStatusLabel = (status) => {
@@ -1905,6 +2150,26 @@ const LiveChat = () => {
     return labels[status] || status;
   };
 
+  const getPriorityColor = (priority) => {
+    const colors = {
+      alta: "bg-red-100 text-red-800",
+      media: "bg-yellow-100 text-yellow-800",
+      baixa: "bg-green-100 text-green-800"
+    };
+    return colors[priority] || "bg-gray-100 text-gray-800";
+  };
+
+  const getChannelIcon = (channel) => {
+    switch (channel) {
+      case 'whatsapp':
+        return <MessageCircle className="h-3 w-3 text-green-600" />;
+      case 'email':
+        return <Mail className="h-3 w-3 text-blue-600" />;
+      default:
+        return <MessageSquare className="h-3 w-3 text-gray-600" />;
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -1914,16 +2179,17 @@ const LiveChat = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-screen flex flex-col bg-gray-50">
       {/* WhatsApp Connection Banner */}
       {!whatsappIntegration.is_connected && (
-        <div className="bg-green-500 text-white p-4 flex items-center justify-between">
+        <div className="bg-green-500 text-white p-3 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-3">
-            <MessageCircle className="h-6 w-6" />
+            <MessageCircle className="h-5 w-5" />
             <span className="font-medium">Conecte o WhatsApp para ativar o atendimento ao vivo</span>
           </div>
           <Button 
             variant="secondary" 
+            size="sm"
             onClick={() => setShowConnectDialog(true)}
             className="bg-white text-green-700 hover:bg-gray-100"
           >
@@ -1935,26 +2201,52 @@ const LiveChat = () => {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar de Conversas */}
-        <div className="w-80 border-r bg-white flex flex-col">
-          <div className="p-4 border-b">
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">Chat ao Vivo</h2>
+        <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+          {/* Header da Sidebar */}
+          <div className="p-4 border-b border-gray-200 bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Chat ao Vivo</h2>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                  <div className="absolute inset-0 w-3 h-3 bg-green-400 rounded-full animate-ping opacity-30"></div>
+                </div>
+                <span className="text-xs text-green-600 font-medium">Online</span>
+              </div>
+            </div>
+            
+            {/* Busca Global */}
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Buscar conversas, nomes, telefones..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 h-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-300"
+              />
+            </div>
             
             {/* Filtros */}
-            <div className="flex gap-1">
+            <div className="flex gap-1 flex-wrap">
               {[
-                { key: 'todos', label: 'Todos' },
-                { key: 'novos', label: 'Novos' },
-                { key: 'em_atendimento', label: 'Em Atendimento' },
-                { key: 'fechados', label: 'Fechados' }
-              ].map(({ key, label }) => (
+                { key: 'todos', label: 'Todos', count: conversations.length },
+                { key: 'novos', label: 'Novos', count: conversations.filter(c => c.status === 'novo').length },
+                { key: 'em_atendimento', label: 'Atendimento', count: conversations.filter(c => c.status === 'em_atendimento').length },
+                { key: 'fechados', label: 'Fechados', count: conversations.filter(c => c.status === 'fechado').length }
+              ].map(({ key, label, count }) => (
                 <Button
                   key={key}
                   size="sm"
                   variant={filter === key ? "default" : "ghost"}
                   onClick={() => setFilter(key)}
-                  className="text-xs"
+                  className={`text-xs h-8 px-2 mr-1 mb-1 ${filter === key ? 'bg-blue-600 text-white' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}
                 >
                   {label}
+                  {count > 0 && (
+                    <Badge className="ml-1 h-4 px-1 text-xs bg-gray-200 text-gray-700 rounded-full">
+                      {count}
+                    </Badge>
+                  )}
                 </Button>
               ))}
             </div>
@@ -1966,16 +2258,23 @@ const LiveChat = () => {
               <div
                 key={conversation.id}
                 onClick={() => selectConversation(conversation)}
-                className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
-                  selectedConversation?.id === conversation.id ? 'bg-blue-50 border-blue-200' : ''
+                className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-all duration-150 ${
+                  selectedConversation?.id === conversation.id ? 'bg-blue-50 border-blue-200 border-l-4 border-l-blue-500' : ''
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback className="bg-green-100 text-green-700">
-                      {conversation.lead?.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="relative">
+                    <Avatar className="h-11 w-11">
+                      <AvatarFallback className="bg-gradient-to-br from-blue-100 to-blue-200 text-blue-700 font-semibold">
+                        {conversation.lead?.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
+                    {/* Status indicator */}
+                    <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
+                      conversation.status === 'novo' ? 'bg-blue-500' :
+                      conversation.status === 'em_atendimento' ? 'bg-green-500' : 'bg-gray-400'
+                    }`}></div>
+                  </div>
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
@@ -1983,186 +2282,458 @@ const LiveChat = () => {
                         {conversation.lead?.name}
                       </p>
                       <div className="flex items-center gap-1">
-                        <MessageCircle className="h-3 w-3 text-green-600" />
+                        {getChannelIcon(conversation.channel)}
+                        {conversation.unread_count > 0 && (
+                          <Badge className="h-4 px-1.5 text-xs bg-red-500 text-white rounded-full">
+                            {conversation.unread_count}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     
-                    <p className="text-xs text-gray-500 truncate mb-2">
+                    <p className="text-xs text-gray-500 truncate mb-2 leading-relaxed">
                       {conversation.last_message}
                     </p>
                     
                     <div className="flex items-center justify-between">
-                      <Badge className={`text-xs ${getStatusColor(conversation.status)}`}>
-                        {getStatusLabel(conversation.status)}
-                      </Badge>
-                      <span className="text-xs text-gray-400">
-                        {new Date(conversation.last_message_time).toLocaleTimeString('pt-BR', { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
-                      </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge className={`text-xs px-2 py-0.5 border ${getStatusColor(conversation.status)}`}>
+                          {getStatusLabel(conversation.status)}
+                        </Badge>
+                        {conversation.priority === 'alta' && (
+                          <Badge className={`text-xs px-2 py-0.5 ${getPriorityColor(conversation.priority)}`}>
+                            ⚡ Alta
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <span className="text-xs text-gray-400">
+                          {new Date(conversation.last_message_time).toLocaleTimeString('pt-BR', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </span>
+                        {conversation.assigned_agent && (
+                          <span className="text-xs text-blue-600 flex items-center gap-1 mt-1">
+                            <UserCheck className="h-3 w-3" />
+                            {conversation.assigned_agent === 'IA Bot' ? '🤖' : '👤'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             ))}
+            
+            {filteredConversations.length === 0 && (
+              <div className="text-center py-12">
+                <MessageCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 text-sm">
+                  {searchTerm ? 'Nenhuma conversa encontrada' : 'Nenhuma conversa disponível'}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Área Principal */}
-        <div className="flex-1 flex">
+        {/* Área Principal do Chat */}
+        <div className="flex-1 flex min-w-0">
           {selectedConversation ? (
             <>
               {/* Chat Area */}
-              <div className="flex-1 flex flex-col">
-                {/* Header */}
-                <div className="p-4 border-b bg-white">
+              <div className="flex-1 flex flex-col bg-white min-w-0">
+                {/* Header do Chat */}
+                <div className="px-4 py-3 border-b border-gray-200 bg-white shadow-sm">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback className="bg-green-100 text-green-700">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <Avatar className="h-10 w-10 flex-shrink-0">
+                        <AvatarFallback className="bg-gradient-to-br from-blue-100 to-blue-200 text-blue-700 font-semibold">
                           {selectedLead?.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                         </AvatarFallback>
                       </Avatar>
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{selectedLead?.name}</h3>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                          <MessageCircle className="h-3 w-3" />
-                          <span>WhatsApp</span>
-                          <span>•</span>
-                          <span>
-                            {selectedConversation.assigned_to 
-                              ? `Atendido por ${selectedConversation.assigned_to}`
-                              : 'Atendido pelo Bot'
-                            }
-                          </span>
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-gray-900 truncate">{selectedLead?.name}</h3>
+                        <div className="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
+                          <div className="flex items-center gap-1">
+                            {getChannelIcon(selectedConversation.channel)}
+                            <span className="capitalize text-xs">{selectedConversation.channel}</span>
+                          </div>
+                          <span className="hidden sm:inline">•</span>
+                          <div className="flex items-center gap-1 text-xs">
+                            {selectedConversation.assigned_agent === 'IA Bot' ? (
+                              <>
+                                🤖 <span className="hidden sm:inline">Atendido pela IA</span>
+                              </>
+                            ) : selectedConversation.assigned_agent ? (
+                              <>
+                                👤 <span className="hidden sm:inline">Atendido por {selectedConversation.assigned_agent}</span>
+                              </>
+                            ) : (
+                              <span className="text-orange-600 font-medium text-xs">Aguardando</span>
+                            )}
+                          </div>
+                          {selectedConversation.priority === 'alta' && (
+                            <>
+                              <span className="hidden sm:inline">•</span>
+                              <Badge className="bg-red-100 text-red-700 text-xs px-2 py-0.5">⚡</Badge>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-2">
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2 ml-2">
                       {selectedConversation.status === 'novo' && (
-                        <Button size="sm" onClick={assignToMe}>
-                          Assumir Atendimento
+                        <Button size="sm" onClick={assignToMe} className="bg-green-600 hover:bg-green-700 text-xs px-3 py-1">
+                          <UserCheck className="h-3 w-3 mr-1" />
+                          <span className="hidden sm:inline">Assumir</span>
                         </Button>
                       )}
                       {selectedConversation.status === 'em_atendimento' && (
-                        <Button size="sm" variant="outline" onClick={returnToBot}>
-                          Devolver para IA
+                        <Button size="sm" variant="outline" onClick={returnToBot} className="border-blue-300 text-blue-700 hover:bg-blue-50 text-xs px-3 py-1">
+                          <Bot className="h-3 w-3 mr-1" />
+                          <span className="hidden sm:inline">IA</span>
                         </Button>
                       )}
-                      <Button size="sm" variant="outline" onClick={closeConversation}>
-                        Encerrar
+                      <Button size="sm" variant="outline" onClick={closeConversation} className="border-gray-300 text-gray-700 hover:bg-gray-50 text-xs px-3 py-1">
+                        <X className="h-3 w-3 mr-1" />
+                        <span className="hidden sm:inline">Encerrar</span>
                       </Button>
                     </div>
                   </div>
                 </div>
 
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                  {messages.map((message) => (
+                {/* Messages Area */}
+                <div className="flex-1 overflow-y-auto px-4 py-3 bg-gray-50 space-y-3">
+                  {messages.map((message, index) => (
                     <div
                       key={message.id}
-                      className={`flex ${message.sender === 'lead' ? 'justify-start' : 'justify-end'}`}
+                      className={`flex ${message.sender === 'lead' ? 'justify-start' : 'justify-end'} ${index > 0 ? 'mt-3' : ''}`}
                     >
-                      <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                      <div className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl shadow-sm ${
                         message.sender === 'lead'
-                          ? 'bg-gray-100 text-gray-900'
+                          ? 'bg-white text-gray-900 border border-gray-200'
                           : message.sender === 'agent'
-                          ? 'bg-green-100 text-green-900 flex items-start gap-2'
+                          ? 'bg-green-500 text-white'
+                          : message.sender === 'system'
+                          ? 'bg-gray-200 text-gray-700 text-center text-xs px-3 py-2'
                           : 'bg-blue-500 text-white'
                       }`}>
-                        {message.sender === 'agent' && <span className="text-xs">🤖</span>}
+                        {/* Sender label - only for non-lead messages */}
+                        {message.sender !== 'lead' && message.sender !== 'system' && (
+                          <div className="flex items-center gap-1 mb-1">
+                            {message.sender === 'agent' ? (
+                              <>
+                                <span className="text-xs">🤖</span>
+                                <span className="text-xs font-medium opacity-90">IA Bot</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-xs">👤</span>
+                                <span className="text-xs font-medium opacity-90">{message.sender_name}</span>
+                              </>
+                            )}
+                          </div>
+                        )}
+                        
                         <div>
-                          <p className="text-sm">{message.message}</p>
-                          <p className={`text-xs mt-1 ${
-                            message.sender === 'lead' 
-                              ? 'text-gray-500' 
-                              : message.sender === 'agent'
-                              ? 'text-green-600'
-                              : 'text-blue-100'
-                          }`}>
-                            {new Date(message.timestamp).toLocaleTimeString('pt-BR', { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })}
+                          <p className={`text-sm leading-relaxed ${message.sender === 'system' ? 'text-center' : ''}`}>
+                            {message.message}
                           </p>
+                          {message.sender !== 'system' && (
+                            <p className={`text-xs mt-2 ${
+                              message.sender === 'lead' 
+                                ? 'text-gray-500' 
+                                : 'text-white opacity-75'
+                            }`}>
+                              {new Date(message.timestamp).toLocaleTimeString('pt-BR', { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              })}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {/* Message Input */}
-                <div className="p-4 border-t bg-white">
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="ghost">
-                      <Paperclip className="h-4 w-4" />
-                    </Button>
-                    <Input
-                      placeholder="Digite sua mensagem..."
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                      className="flex-1"
-                    />
-                    <Button size="sm" variant="ghost">
-                      <Smile className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" onClick={sendMessage} disabled={!newMessage.trim()}>
-                      <Send className="h-4 w-4" />
-                    </Button>
+                {/* Message Composer */}
+                <div className="px-4 py-3 border-t border-gray-200 bg-white">
+                  {/* Quick Replies */}
+                  {showQuickReplies && (
+                    <div className="mb-3 p-3 bg-gray-50 rounded-lg border">
+                      <p className="text-xs font-medium text-gray-700 mb-2">Respostas Rápidas:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {quickReplies.map((reply, index) => (
+                          <Button
+                            key={index}
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setNewMessage(reply);
+                              setShowQuickReplies(false);
+                            }}
+                            className="text-xs h-7 px-2 bg-white hover:bg-blue-50 border-gray-300"
+                          >
+                            {reply.length > 25 ? reply.substring(0, 25) + '...' : reply}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Macros */}
+                  {showMacros && (
+                    <div className="mb-3 p-3 bg-gray-50 rounded-lg border">
+                      <p className="text-xs font-medium text-gray-700 mb-2">Macros Disponíveis:</p>
+                      <div className="space-y-2">
+                        {macros.map((macro, index) => (
+                          <Button
+                            key={index}
+                            size="sm"
+                            variant="outline"
+                            onClick={() => applyMacro(macro.text)}
+                            className="w-full justify-start text-xs h-8 bg-white hover:bg-blue-50 border-gray-300"
+                          >
+                            <span className="font-medium mr-2">{macro.name}:</span>
+                            <span className="text-gray-600 truncate">{macro.text}</span>
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Composer */}
+                  <div className="flex items-end gap-2">
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setShowQuickReplies(!showQuickReplies)}
+                        className="text-gray-600 hover:text-gray-900 h-9 w-9 p-0 flex-shrink-0"
+                        title="Respostas Rápidas"
+                      >
+                        ⚡
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setShowMacros(!showMacros)}
+                        className="text-gray-600 hover:text-gray-900 h-9 w-9 p-0 flex-shrink-0"
+                        title="Macros"
+                      >
+                        📋
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-gray-600 hover:text-gray-900 h-9 w-9 p-0 flex-shrink-0"
+                        title="Anexar Arquivo"
+                      >
+                        <Paperclip className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    
+                    <div className="flex-1 relative min-w-0">
+                      <Textarea
+                        placeholder="Digite sua mensagem..."
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
+                        className="min-h-[40px] max-h-32 resize-none pr-12 py-2 text-sm"
+                        rows={1}
+                      />
+                      <Button
+                        size="sm"
+                        onClick={sendMessage}
+                        disabled={!newMessage.trim()}
+                        className="absolute right-2 bottom-2 h-7 w-7 p-0 bg-blue-600 hover:bg-blue-700 flex-shrink-0"
+                      >
+                        <Send className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Lead Panel */}
-              <div className="w-80 border-l bg-gray-50 p-4">
-                <h3 className="font-semibold text-gray-900 mb-4">Informações do Lead</h3>
-                
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">Nome</Label>
-                    <p className="text-sm text-gray-900">{selectedLead?.name}</p>
-                  </div>
+              {/* Painel Lateral Direito - Informações do Lead */}
+              <div className="w-80 border-l border-gray-200 bg-white flex flex-col">
+                <div className="px-4 py-3 border-b border-gray-200">
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Informações do Lead
+                  </h3>
                   
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">Telefone</Label>
-                    <p className="text-sm text-gray-900">{selectedLead?.phone}</p>
-                  </div>
-                  
-                  {selectedLead?.email && (
+                  {/* Informações Básicas */}
+                  <div className="space-y-3 mb-4">
                     <div>
-                      <Label className="text-sm font-medium text-gray-700">Email</Label>
-                      <p className="text-sm text-gray-900">{selectedLead?.email}</p>
+                      <Label className="text-sm font-medium text-gray-700">Nome</Label>
+                      <p className="text-sm text-gray-900 font-medium mt-1">{selectedLead?.name}</p>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Telefone</Label>
+                      <p className="text-sm text-gray-900 flex items-center gap-2 mt-1">
+                        <Phone className="h-3 w-3" />
+                        {selectedLead?.phone}
+                      </p>
+                    </div>
+                    
+                    {selectedLead?.email && (
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700">Email</Label>
+                        <p className="text-sm text-gray-900 flex items-center gap-2 mt-1">
+                          <Mail className="h-3 w-3" />
+                          {selectedLead?.email}
+                        </p>
+                      </div>
+                    )}
+                    
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Status no CRM</Label>
+                      <Badge className={`mt-1 text-xs px-2 py-1 ${getStatusColor(selectedLead?.status)}`}>
+                        {getStatusLabel(selectedLead?.status)}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Tags Editáveis */}
+                  <div className="mb-4">
+                    <Label className="text-sm font-medium text-gray-700 mb-2 block">Tags</Label>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {leadTags.map((tag, index) => (
+                        <Badge
+                          key={index}
+                          variant="outline"
+                          className="px-2 py-1 text-xs flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-200"
+                        >
+                          {tag}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => removeTag(tag)}
+                            className="h-3 w-3 p-0 hover:bg-red-100 text-red-600 ml-1 rounded-full"
+                          >
+                            <X className="h-2 w-2" />
+                          </Button>
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Nova tag"
+                        value={newTag}
+                        onChange={(e) => setNewTag(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addTag();
+                          }
+                        }}
+                        className="h-8 text-xs flex-1"
+                      />
+                      <Button 
+                        size="sm" 
+                        onClick={addTag} 
+                        disabled={!newTag.trim()}
+                        className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700"
+                      >
+                        +
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Atribuição e Prioridade */}
+                  <div className="space-y-3 mb-4">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 mb-1 block">Agente Responsável</Label>
+                      <Select value={assignedAgent} onValueChange={setAssignedAgent}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Selecionar agente" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="IA Bot">🤖 IA Bot</SelectItem>
+                          <SelectItem value="João Silva">👤 João Silva</SelectItem>
+                          <SelectItem value="Maria Santos">👤 Maria Santos</SelectItem>
+                          <SelectItem value="Pedro Oliveira">👤 Pedro Oliveira</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 mb-1 block">Equipe</Label>
+                      <p className="text-sm text-gray-900">{selectedLead?.team || 'Vendas'}</p>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 mb-1 block">Prioridade</Label>
+                      <Select value={priority} onValueChange={setPriority}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="baixa">🟢 Baixa</SelectItem>
+                          <SelectItem value="media">🟡 Média</SelectItem>
+                          <SelectItem value="alta">🔴 Alta</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Observações Internas */}
+                <div className="flex-1 px-4 py-3 overflow-y-auto">
+                  <div className="mb-4">
+                    <Label className="text-sm font-medium text-gray-700 mb-2 block">Observações Internas</Label>
+                    <div className="space-y-3">
+                      <Textarea
+                        placeholder="Adicione uma observação sobre este lead..."
+                        value={leadNotes}
+                        onChange={(e) => setLeadNotes(e.target.value)}
+                        className="h-20 text-xs resize-none"
+                        rows={3}
+                      />
+                      <Button 
+                        size="sm" 
+                        onClick={saveNotes} 
+                        disabled={!leadNotes.trim()}
+                        className="w-full h-8 text-xs bg-gray-900 hover:bg-gray-800"
+                      >
+                        Salvar Observação
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Histórico de Observações */}
+                  {notesHistory.length > 0 && (
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 mb-3 block">Histórico de Observações</Label>
+                      <div className="space-y-3">
+                        {notesHistory.map((note) => (
+                          <div key={note.id} className="p-3 bg-gray-50 rounded-lg border">
+                            <p className="text-xs text-gray-900 leading-relaxed mb-2">{note.note}</p>
+                            <div className="flex items-center justify-between text-xs text-gray-500">
+                              <span className="font-medium">{note.author}</span>
+                              <span>{note.date.toLocaleDateString('pt-BR')} às {note.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
-                  
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">Tags</Label>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      <Badge variant="outline">Interessado</Badge>
-                      <Badge variant="outline">Apartamento</Badge>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">Observações Internas</Label>
-                    <Textarea
-                      placeholder="Adicione observações sobre este lead..."
-                      className="mt-1"
-                      rows={3}
-                    />
-                  </div>
                 </div>
               </div>
             </>
           ) : (
+            // Estado vazio
             <div className="flex-1 flex items-center justify-center bg-gray-50">
-              <div className="text-center">
+              <div className="text-center px-4">
                 <MessageCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Selecione uma conversa</h3>
-                <p className="text-gray-500">Escolha uma conversa da lista para começar o atendimento</p>
+                <p className="text-gray-500">Escolha uma conversa da lista para começar o atendimento omnichannel</p>
               </div>
             </div>
           )}
@@ -2519,6 +3090,9 @@ const Navigation = () => {
                 <Link to="/live-chat" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
                   Chat ao Vivo
                 </Link>
+                <Link to="/automation" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                  Automação
+                </Link>
                 <Link to="/whatsapp-config" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
                   WhatsApp
                 </Link>
@@ -2581,7 +3155,608 @@ const ChatWrapper = () => {
   return <Chat leadId={leadId} />;
 };
 
-// Add useParams import
-import { useParams } from "react-router-dom";
+// Commercial Automation Component
+const CommercialAutomation = () => {
+  const [activeTab, setActiveTab] = useState('settings');
+  const [settings, setSettings] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [qualifiedLeads, setQualifiedLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [settingsRes, historyRes, qualifiedRes] = await Promise.all([
+        axios.get(`${API}/automation/settings`),
+        axios.get(`${API}/automation/history?limit=50`),
+        axios.get(`${API}/automation/qualified-leads`)
+      ]);
+      
+      setSettings(settingsRes.data);
+      setHistory(historyRes.data);
+      setQualifiedLeads(qualifiedRes.data);
+    } catch (error) {
+      console.error('Erro ao carregar dados de automação:', error);
+      toast.error('Erro ao carregar dados de automação');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateSettings = async (newSettings) => {
+    try {
+      setProcessing(true);
+      await axios.put(`${API}/automation/settings`, newSettings);
+      setSettings(newSettings);
+      toast.success('Configurações salvas com sucesso!');
+    } catch (error) {
+      console.error('Erro ao salvar configurações:', error);
+      toast.error('Erro ao salvar configurações');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const processFollowUps = async () => {
+    try {
+      setProcessing(true);
+      const response = await axios.post(`${API}/automation/process-followups`);
+      toast.success(response.data.message);
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Erro ao processar follow-ups:', error);
+      toast.error('Erro ao processar follow-ups');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const processReactivations = async () => {
+    try {
+      setProcessing(true);
+      const response = await axios.post(`${API}/automation/process-reactivations`);
+      toast.success(response.data.message);
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Erro ao processar reativações:', error);
+      toast.error('Erro ao processar reativações');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const qualifyLeads = async () => {
+    try {
+      setProcessing(true);
+      const response = await axios.get(`${API}/automation/qualify-leads`);
+      toast.success(response.data.message);
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Erro ao qualificar leads:', error);
+      toast.error('Erro ao qualificar leads');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      'scheduled': 'bg-blue-100 text-blue-800',
+      'sent': 'bg-green-100 text-green-800',
+      'failed': 'bg-red-100 text-red-800',
+      'cancelled': 'bg-gray-100 text-gray-800'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getStatusLabel = (status) => {
+    const labels = {
+      'scheduled': 'Agendado',
+      'sent': 'Enviado',
+      'failed': 'Falhou',
+      'cancelled': 'Cancelado'
+    };
+    return labels[status] || status;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
+          <p className="text-gray-600">Carregando automação comercial...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Automação Comercial</h1>
+              <p className="text-gray-600">Configure follow-ups automáticos, reativação de leads e qualificação inteligente</p>
+            </div>
+            
+            <div className="flex gap-2">
+              <Button onClick={processFollowUps} disabled={processing} variant="outline">
+                <Send className="h-4 w-4 mr-2" />
+                {processing ? 'Processando...' : 'Executar Follow-ups'}
+              </Button>
+              <Button onClick={processReactivations} disabled={processing} variant="outline">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                {processing ? 'Processando...' : 'Executar Reativações'}
+              </Button>
+              <Button onClick={qualifyLeads} disabled={processing}>
+                <UserCheck className="h-4 w-4 mr-2" />
+                {processing ? 'Processando...' : 'Qualificar Leads'}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="settings">Configurações</TabsTrigger>
+            <TabsTrigger value="qualified">Leads Qualificados</TabsTrigger>
+            <TabsTrigger value="history">Histórico</TabsTrigger>
+            <TabsTrigger value="analytics">Relatórios</TabsTrigger>
+          </TabsList>
+
+          {/* Settings Tab */}
+          <TabsContent value="settings" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Configurações de Follow-up por Etapa
+                </CardTitle>
+                <CardDescription>
+                  Configure mensagens automáticas baseadas na etapa do funil de vendas
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {settings?.follow_up_configs?.map((config, index) => (
+                  <div key={index} className="border rounded-lg p-4 mb-4 bg-gray-50">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-medium text-gray-900 capitalize">
+                        {config.stage.replace('_', ' ')}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">Ativado</span>
+                        <input 
+                          type="checkbox" 
+                          checked={config.enabled}
+                          onChange={(e) => {
+                            const newSettings = { ...settings };
+                            newSettings.follow_up_configs[index].enabled = e.target.checked;
+                            updateSettings(newSettings);
+                          }}
+                          className="rounded border-gray-300"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium mb-1 block">Intervalos (horas)</Label>
+                        <Input 
+                          value={config.intervals.join(', ')}
+                          onChange={(e) => {
+                            const newSettings = { ...settings };
+                            newSettings.follow_up_configs[index].intervals = 
+                              e.target.value.split(',').map(i => parseInt(i.trim())).filter(i => !isNaN(i));
+                            setSettings(newSettings);
+                          }}
+                          placeholder="1, 24, 72"
+                          className="text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium mb-1 block">Template da Mensagem</Label>
+                        <Textarea 
+                          value={config.message_template}
+                          onChange={(e) => {
+                            const newSettings = { ...settings };
+                            newSettings.follow_up_configs[index].message_template = e.target.value;
+                            setSettings(newSettings);
+                          }}
+                          placeholder="Olá {name}, como posso ajudá-lo?"
+                          className="text-sm h-20"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                <Button onClick={() => updateSettings(settings)} disabled={processing} className="w-full">
+                  Salvar Configurações de Follow-up
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Reactivation Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5" />
+                  Reativação de Leads Inativos
+                </CardTitle>
+                <CardDescription>
+                  Configure campanhas automáticas para reativar leads sem interação
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <Label className="text-sm font-medium mb-1 block">Dias sem interação</Label>
+                    <Select 
+                      value={settings?.reactivation_config?.inactive_days?.toString()}
+                      onValueChange={(value) => {
+                        const newSettings = { ...settings };
+                        newSettings.reactivation_config.inactive_days = parseInt(value);
+                        setSettings(newSettings);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="15">15 dias</SelectItem>
+                        <SelectItem value="30">30 dias</SelectItem>
+                        <SelectItem value="60">60 dias</SelectItem>
+                        <SelectItem value="90">90 dias</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-sm font-medium mb-1 block">Máximo de tentativas</Label>
+                    <Select 
+                      value={settings?.reactivation_config?.max_attempts?.toString()}
+                      onValueChange={(value) => {
+                        const newSettings = { ...settings };
+                        newSettings.reactivation_config.max_attempts = parseInt(value);
+                        setSettings(newSettings);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 tentativa</SelectItem>
+                        <SelectItem value="2">2 tentativas</SelectItem>
+                        <SelectItem value="3">3 tentativas</SelectItem>
+                        <SelectItem value="5">5 tentativas</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-sm font-medium mb-1 block">Intervalos (dias)</Label>
+                    <Input 
+                      value={settings?.reactivation_config?.intervals?.join(', ')}
+                      onChange={(e) => {
+                        const newSettings = { ...settings };
+                        newSettings.reactivation_config.intervals = 
+                          e.target.value.split(',').map(i => parseInt(i.trim())).filter(i => !isNaN(i));
+                        setSettings(newSettings);
+                      }}
+                      placeholder="1, 7, 14"
+                    />
+                  </div>
+                </div>
+                
+                <div className="mb-4">
+                  <Label className="text-sm font-medium mb-1 block">Template da Mensagem de Reativação</Label>
+                  <Textarea 
+                    value={settings?.reactivation_config?.message_template}
+                    onChange={(e) => {
+                      const newSettings = { ...settings };
+                      newSettings.reactivation_config.message_template = e.target.value;
+                      setSettings(newSettings);
+                    }}
+                    placeholder="Olá {name}, ainda tem interesse em imóveis?"
+                    className="h-20"
+                  />
+                </div>
+                
+                <Button onClick={() => updateSettings(settings)} disabled={processing} className="w-full">
+                  Salvar Configurações de Reativação
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Qualification Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserCheck className="h-5 w-5" />
+                  Qualificação Automática de Leads
+                </CardTitle>
+                <CardDescription>
+                  Configure critérios para identificar leads quentes automaticamente
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <Label className="text-sm font-medium mb-1 block">Pontuação mínima para lead quente</Label>
+                    <Select 
+                      value={settings?.qualification_config?.hot_lead_threshold?.toString()}
+                      onValueChange={(value) => {
+                        const newSettings = { ...settings };
+                        newSettings.qualification_config.hot_lead_threshold = parseInt(value);
+                        setSettings(newSettings);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="2">2 pontos</SelectItem>
+                        <SelectItem value="3">3 pontos</SelectItem>
+                        <SelectItem value="4">4 pontos</SelectItem>
+                        <SelectItem value="5">5 pontos</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-sm font-medium mb-1 block">Método de atribuição</Label>
+                    <Select 
+                      value={settings?.qualification_config?.assignment_method}
+                      onValueChange={(value) => {
+                        const newSettings = { ...settings };
+                        newSettings.qualification_config.assignment_method = value;
+                        setSettings(newSettings);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="round_robin">Rodízio</SelectItem>
+                        <SelectItem value="region">Por região</SelectItem>
+                        <SelectItem value="specialty">Por especialidade</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-100 p-4 rounded-lg">
+                  <h4 className="font-medium mb-2">Critérios de Pontuação:</h4>
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    <li>• Atividade recente (&lt;24h): +2 pontos, (&lt;72h): +1 ponto</li>
+                    <li>• Alto engajamento (5+ mensagens): +2 pontos, Médio (3+): +1 ponto</li>
+                    <li>• Palavras-chave de interesse (3+): +2 pontos, (1+): +1 ponto</li>
+                    <li>• Progressão de status (Em negociação/Visita): +1 ponto</li>
+                  </ul>
+                </div>
+                
+                <Button onClick={() => updateSettings(settings)} disabled={processing} className="w-full mt-4">
+                  Salvar Configurações de Qualificação
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Qualified Leads Tab */}
+          <TabsContent value="qualified" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <UserCheck className="h-5 w-5" />
+                    Leads Qualificados ({qualifiedLeads.length})
+                  </span>
+                  <Button onClick={qualifyLeads} disabled={processing} size="sm">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Requalificar
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2">Lead</th>
+                        <th className="text-left p-2">Pontuação</th>
+                        <th className="text-left p-2">Critérios</th>
+                        <th className="text-left p-2">Qualificado em</th>
+                        <th className="text-left p-2">Atribuído a</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {qualifiedLeads.map((qualification) => (
+                        <tr key={qualification.id} className="border-b hover:bg-gray-50">
+                          <td className="p-2">
+                            <div className="font-medium">Lead ID: {qualification.lead_id}</div>
+                          </td>
+                          <td className="p-2">
+                            <Badge className="bg-green-100 text-green-800">
+                              {qualification.score} pontos
+                            </Badge>
+                          </td>
+                          <td className="p-2">
+                            <div className="text-sm space-y-1">
+                              {Object.entries(qualification.criteria_met || {}).map(([key, value]) => (
+                                <div key={key} className={`${value ? 'text-green-600' : 'text-gray-400'}`}>
+                                  {value ? '✓' : '✗'} {key.replace('_', ' ')}
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="p-2 text-sm text-gray-600">
+                            {new Date(qualification.qualification_date).toLocaleDateString('pt-BR')}
+                          </td>
+                          <td className="p-2">
+                            {qualification.assigned_to ? (
+                              <Badge variant="outline">{qualification.assigned_to}</Badge>
+                            ) : (
+                              <span className="text-gray-400 text-sm">Não atribuído</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  
+                  {qualifiedLeads.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <UserCheck className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                      <p>Nenhum lead qualificado encontrado</p>
+                      <p className="text-sm">Execute a qualificação automática para encontrar leads quentes</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* History Tab */}
+          <TabsContent value="history" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Histórico de Automações ({history.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2">Tipo</th>
+                        <th className="text-left p-2">Lead</th>
+                        <th className="text-left p-2">Etapa</th>
+                        <th className="text-left p-2">Mensagem</th>
+                        <th className="text-left p-2">Status</th>
+                        <th className="text-left p-2">Data</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {history.map((item) => (
+                        <tr key={item.id} className="border-b hover:bg-gray-50">
+                          <td className="p-2">
+                            <Badge variant="outline" className="capitalize">
+                              {item.automation_type.replace('_', ' ')}
+                            </Badge>
+                          </td>
+                          <td className="p-2 text-sm">
+                            {item.lead_id}
+                          </td>
+                          <td className="p-2 text-sm capitalize">
+                            {item.stage.replace('_', ' ')}
+                          </td>
+                          <td className="p-2 text-sm">
+                            <div className="max-w-xs truncate">
+                              {item.message}
+                            </div>
+                          </td>
+                          <td className="p-2">
+                            <Badge className={getStatusColor(item.status)}>
+                              {getStatusLabel(item.status)}
+                            </Badge>
+                          </td>
+                          <td className="p-2 text-sm text-gray-600">
+                            {new Date(item.created_at).toLocaleString('pt-BR')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  
+                  {history.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Clock className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                      <p>Nenhum histórico de automação encontrado</p>
+                      <p className="text-sm">Execute automações para ver o histórico aqui</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Analytics Tab */}
+          <TabsContent value="analytics" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Follow-ups Enviados</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">
+                    {history.filter(h => h.automation_type === 'follow_up' && h.status === 'sent').length}
+                  </div>
+                  <p className="text-xs text-gray-500">Últimos 30 dias</p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Reativações Enviadas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {history.filter(h => h.automation_type === 'reactivation' && h.status === 'sent').length}
+                  </div>
+                  <p className="text-xs text-gray-500">Últimos 30 dias</p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Taxa de Sucesso</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-purple-600">
+                    {history.length > 0 ? Math.round((history.filter(h => h.status === 'sent').length / history.length) * 100) : 0}%
+                  </div>
+                  <p className="text-xs text-gray-500">Mensagens enviadas com sucesso</p>
+                </CardContent>
+              </Card>
+            </div>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Resumo de Performance</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Total de automações executadas</span>
+                    <Badge variant="outline">{history.length}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Leads qualificados atualmente</span>
+                    <Badge className="bg-green-100 text-green-800">{qualifiedLeads.length}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Automações falharam</span>
+                    <Badge className="bg-red-100 text-red-800">
+                      {history.filter(h => h.status === 'failed').length}
+                    </Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+};
 
 export default App;

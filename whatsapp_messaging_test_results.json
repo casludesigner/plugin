@@ -1,0 +1,50 @@
+[
+  {
+    "test": "WhatsApp Status",
+    "status": "❌ FALHOU",
+    "success": false,
+    "details": "Status HTTP 502",
+    "timestamp": "2025-09-16T14:48:16.069571",
+    "response_data": ""
+  },
+  {
+    "test": "GET /api/leads",
+    "status": "❌ FALHOU",
+    "success": false,
+    "details": "Status HTTP 502",
+    "timestamp": "2025-09-16T14:48:16.076698",
+    "response_data": ""
+  },
+  {
+    "test": "Phone Validation",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Validação testada: 6/6 números válidos após formatação",
+    "timestamp": "2025-09-16T14:48:16.076776",
+    "response_data": null
+  },
+  {
+    "test": "WhatsApp Send Message",
+    "status": "❌ FALHOU",
+    "success": false,
+    "details": "Nenhum lead disponível para teste",
+    "timestamp": "2025-09-16T14:48:16.076806",
+    "response_data": null
+  },
+  {
+    "test": "Chat Message",
+    "status": "❌ FALHOU",
+    "success": false,
+    "details": "Nenhum lead disponível para teste",
+    "timestamp": "2025-09-16T14:48:16.076817",
+    "response_data": null
+  },
+  {
+    "test": "AI Response",
+    "status": "❌ FALHOU",
+    "success": false,
+    "details": "Nenhum lead disponível para teste",
+    "timestamp": "2025-09-16T14:48:16.076826",
+    "response_data": null
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "test": "Estatísticas iniciais",
+    "success": true,
+    "details": "Obtidas com sucesso"
+  },
+  {
+    "test": "Criação de empresa",
+    "success": true,
+    "details": "ID: 6b701a1b-7d4b-41df-9a09-71b373f5781a"
+  },
+  {
+    "test": "Empresa na lista",
+    "success": true,
+    "details": "Encontrada"
+  },
+  {
+    "test": "Criação de usuários",
+    "success": true,
+    "details": "3 usuários criados"
+  },
+  {
+    "test": "Usuários da empresa",
+    "success": true,
+    "details": "3 usuários"
+  },
+  {
+    "test": "Alteração de papéis",
+    "success": true,
+    "details": "Alterações bem-sucedidas"
+  },
+  {
+    "test": "Alteração de status",
+    "success": true,
+    "details": "Todas as alterações bem-sucedidas"
+  },
+  {
+    "test": "Estatísticas finais",
+    "success": true,
+    "details": "Atualizadas corretamente"
+  }
+]
