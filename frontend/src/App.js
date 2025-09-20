@@ -21,6 +21,34 @@ import { toast, Toaster } from "sonner";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+// Fix for ResizeObserver loop error - suppress non-critical errors
+if (typeof window !== 'undefined') {
+  const resizeObserverErr = /^ResizeObserver loop (completed with undelivered notifications|limit exceeded)/;
+  
+  const originalConsoleError = console.error;
+  console.error = (...args) => {
+    if (args[0] && typeof args[0] === 'string' && resizeObserverErr.test(args[0])) {
+      return; // Suppress ResizeObserver errors
+    }
+    originalConsoleError.apply(console, args);
+  };
+
+  // Also handle window error events
+  window.addEventListener('error', (e) => {
+    if (resizeObserverErr.test(e.message)) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+  });
+
+  // Handle unhandled rejections that might be related
+  window.addEventListener('unhandledrejection', (e) => {
+    if (e.reason && typeof e.reason === 'string' && resizeObserverErr.test(e.reason)) {
+      e.preventDefault();
+    }
+  });
+}
+
 // Dashboard Component
 const Dashboard = () => {
   const [stats, setStats] = useState({
