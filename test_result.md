@@ -180,10 +180,9 @@
 
 ## test_plan:
   current_focus:
-    - "CRM Kanban Backend API"
-    - "Lead Status Update API"
     - "CRM Kanban Interface"
     - "React DND Drag and Drop"
+    - "CRM Existing Features Preservation"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
