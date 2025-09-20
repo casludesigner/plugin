@@ -91,6 +91,105 @@ class AgentConfigCreate(BaseModel):
     behavior: str
     script: List[str]
 
+# Property/Imovel Models
+class Property(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    company_id: str  # ID da empresa/imobiliária
+    title: str
+    description: Optional[str] = None
+    address: str
+    neighborhood: Optional[str] = None
+    city: str
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
+    
+    # Property Details
+    property_type: str  # casa, apartamento, terreno, comercial, etc
+    price: float
+    price_type: str = "venda"  # venda, aluguel, ambos
+    area_total: Optional[float] = None  # área total em m²
+    area_built: Optional[float] = None  # área construída em m²
+    bedrooms: Optional[int] = None
+    bathrooms: Optional[int] = None
+    parking_spaces: Optional[int] = None
+    
+    # Additional Info
+    features: List[str] = Field(default_factory=list)  # piscina, churrasqueira, etc
+    images: List[str] = Field(default_factory=list)  # URLs das imagens
+    
+    # Metadata
+    source: str = "manual"  # manual, document_upload, web_scraping
+    source_url: Optional[str] = None
+    status: str = "available"  # available, sold, rented, unavailable
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class PropertyCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    address: str
+    neighborhood: Optional[str] = None
+    city: str
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
+    property_type: str
+    price: float
+    price_type: str = "venda"
+    area_total: Optional[float] = None
+    area_built: Optional[float] = None
+    bedrooms: Optional[int] = None
+    bathrooms: Optional[int] = None
+    parking_spaces: Optional[int] = None
+    features: List[str] = Field(default_factory=list)
+    images: List[str] = Field(default_factory=list)
+
+# Document Processing Models
+class DocumentUpload(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    company_id: str
+    filename: str  # Nome do arquivo salvo
+    original_name: str  # Nome original do arquivo
+    file_type: str  # PDF, Excel, CSV
+    file_size: int
+    file_path: str  # Caminho do arquivo salvo
+    
+    # Processing Status
+    status: str = "pending"  # pending, processing, completed, error
+    properties_extracted: int = 0
+    processing_details: Optional[str] = None
+    error_message: Optional[str] = None
+    
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    processed_at: Optional[datetime] = None
+
+class ExtractedPropertyData(BaseModel):
+    """Dados extraídos pela IA antes de serem salvos como Property"""
+    title: str
+    description: Optional[str] = None
+    address: str
+    neighborhood: Optional[str] = None
+    city: str
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
+    property_type: str
+    price: float
+    price_type: str = "venda"
+    area_total: Optional[float] = None
+    area_built: Optional[float] = None
+    bedrooms: Optional[int] = None
+    bathrooms: Optional[int] = None
+    parking_spaces: Optional[int] = None
+    features: List[str] = Field(default_factory=list)
+    confidence_score: float = 0.0  # Confiança da IA na extração (0-1)
+
+class DocumentProcessingResponse(BaseModel):
+    document_id: str
+    status: str
+    properties_found: int
+    extracted_properties: List[ExtractedPropertyData]
+    processing_time: float
+    message: str
+
 class TrainingDocument(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     filename: str
