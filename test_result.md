@@ -207,9 +207,9 @@
 
 ## test_plan:
   current_focus:
-    - "ResizeObserver Error Fix"
+    []
   stuck_tasks:
-    - "ResizeObserver Error Fix"
+    []
   test_all: false
   test_priority: "high_first"
 
