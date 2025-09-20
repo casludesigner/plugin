@@ -130,35 +130,41 @@
         - comment: "Funcionalidade de atualizar status dos leads via drag-and-drop precisa ser testada. Endpoint PUT /api/leads/{lead_id} deve suportar mudanças de status entre colunas Kanban."
 
 ## frontend:
-  - task: "Super Admin Panel Frontend"
+  - task: "CRM Kanban Interface"
     implemented: true
-    working: true
+    working: "NA"
     file: "/app/frontend/src/App.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: true
     status_history:
-        - working: false
+        - working: "NA"
         - agent: "main"
-        - comment: "Erros de sintaxe corrigidos: import useParams mal posicionado, rota /super-admin faltando"
-        - working: true
-        - agent: "main"
-        - comment: "Sintaxe corrigida: movido import useParams para o topo, removido import duplicado, adicionada rota /super-admin"
+        - comment: "Nova interface Kanban implementada com react-dnd. Precisa testar: drag-and-drop entre colunas, visual design moderno, cards minimalistas, transições suaves."
 
-  - task: "Commercial Automation Frontend"
+  - task: "React DND Drag and Drop"
     implemented: true
-    working: true
+    working: "NA"
     file: "/app/frontend/src/App.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         - working: "NA"
-        - agent: "testing"
-        - comment: "Iniciando testes completos do frontend de Automação Comercial conforme solicitado pelo usuário. Componente CommercialAutomation implementado com 4 abas: Configurações, Leads Qualificados, Histórico, Relatórios. Rota /automation configurada corretamente."
-        - working: true
-        - agent: "testing"
-        - comment: "TESTES COMPLETOS DE AUTOMAÇÃO COMERCIAL FRONTEND CONCLUÍDOS COM 100% DE SUCESSO - Todos os requisitos testados: ✅ NAVEGAÇÃO: Menu 'Automação' funcional em /automation ✅ INTERFACE: 4 abas carregadas (Configurações, Leads Qualificados, Histórico, Relatórios) ✅ ABA CONFIGURAÇÕES: Follow-up por Etapa com 4 etapas (Novo Lead, Em Negociação, Visita Agendada, Fechamento), checkboxes funcionais, campos de intervalos editáveis (1,24,72h), templates de mensagem personalizáveis, Reativação de Leads com dropdowns (15,30,60,90 dias), máximo tentativas (1-5), Qualificação com pontuação mínima (2-5 pontos), métodos de atribuição (Rodízio, Região, Especialidade), critérios de pontuação exibidos ✅ ABA LEADS QUALIFICADOS: Tabela com colunas (Lead, Pontuação, Critérios, Data, Atribuído), botão Requalificar funcional, badges de pontuação ✅ ABA HISTÓRICO: Tabela com colunas (Tipo, Lead, Etapa, Mensagem, Status, Data), badges coloridos para status (Agendado, Enviado, Falhado, Cancelado) ✅ ABA RELATÓRIOS: Cards de estatísticas (Follow-ups Enviados: 3, Reativações Enviadas: 0, Taxa de Sucesso: 100%), resumo de performance ✅ BOTÕES DE AÇÃO: Executar Follow-ups, Executar Reativações, Qualificar Leads - todos funcionais com loading states ✅ RESPONSIVIDADE: Interface adaptada para mobile (390px) e tablet (768px) ✅ INTEGRAÇÃO VISUAL: Design consistente com PropBot CRM, esquema de cores correto. Sistema de automação comercial totalmente funcional e intuitivo conforme especificado."
+        - agent: "main"
+        - comment: "Funcionalidade drag-and-drop implementada com react-dnd e react-dnd-html5-backend. Leads devem poder ser arrastados entre colunas: Novo Lead, Em Negociação, Visita Agendada, Fechamento."
+
+  - task: "CRM Existing Features Preservation"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "main"
+        - comment: "Funcionalidades existentes do CRM devem ser preservadas: criar novos leads, alterar status via dropdown, visualização de detalhes, responsividade."
 
 ## metadata:
   created_by: "main_agent"
