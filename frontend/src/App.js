@@ -710,13 +710,14 @@ const AgentConfig = () => {
   );
 };
 
-// CRM Component
+// CRM Component - Modern Kanban Style
 const CRM = () => {
   const [leads, setLeads] = useState([]);
   const [selectedLead, setSelectedLead] = useState(null);
   const [loading, setLoading] = useState(true);
   const [newLead, setNewLead] = useState({ name: '', phone: '', email: '' });
   const [showNewLeadForm, setShowNewLeadForm] = useState(false);
+  const [draggedItem, setDraggedItem] = useState(null);
 
   useEffect(() => {
     fetchLeads();
@@ -758,14 +759,76 @@ const CRM = () => {
     }
   };
 
+  const handleDragStart = (e, lead) => {
+    setDraggedItem(lead);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/html", e.target.outerHTML);
+    e.target.style.opacity = "0.5";
+  };
+
+  const handleDragEnd = (e) => {
+    e.target.style.opacity = "1";
+    setDraggedItem(null);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (e, newStatus) => {
+    e.preventDefault();
+    if (draggedItem && draggedItem.status !== newStatus) {
+      updateLeadStatus(draggedItem.id, newStatus);
+    }
+  };
+
+  const getStatusConfig = (status) => {
+    const configs = {
+      novo_lead: { 
+        label: "Novos Leads", 
+        color: "blue", 
+        bgClass: "bg-blue-50 border-blue-200",
+        headerClass: "bg-gradient-to-r from-blue-500 to-blue-600",
+        icon: "👋",
+        count: leads.filter(lead => lead.status === status).length
+      },
+      em_negociacao: { 
+        label: "Em Negociação", 
+        color: "amber", 
+        bgClass: "bg-amber-50 border-amber-200",
+        headerClass: "bg-gradient-to-r from-amber-500 to-amber-600",
+        icon: "💬",
+        count: leads.filter(lead => lead.status === status).length
+      },
+      visita_agendada: { 
+        label: "Visita Agendada", 
+        color: "purple", 
+        bgClass: "bg-purple-50 border-purple-200",
+        headerClass: "bg-gradient-to-r from-purple-500 to-purple-600",
+        icon: "📅",
+        count: leads.filter(lead => lead.status === status).length
+      },
+      fechamento: { 
+        label: "Fechamento", 
+        color: "green", 
+        bgClass: "bg-green-50 border-green-200",
+        headerClass: "bg-gradient-to-r from-green-500 to-green-600",
+        icon: "✅",
+        count: leads.filter(lead => lead.status === status).length
+      }
+    };
+    return configs[status];
+  };
+
   const getStatusColor = (status) => {
     const colors = {
-      novo_lead: "bg-blue-100 text-blue-800",
-      em_negociacao: "bg-yellow-100 text-yellow-800",
-      visita_agendada: "bg-purple-100 text-purple-800",
-      fechamento: "bg-green-100 text-green-800"
+      novo_lead: "bg-blue-100 text-blue-800 border-blue-300",
+      em_negociacao: "bg-amber-100 text-amber-800 border-amber-300",
+      visita_agendada: "bg-purple-100 text-purple-800 border-purple-300",
+      fechamento: "bg-green-100 text-green-800 border-green-300"
     };
-    return colors[status] || "bg-gray-100 text-gray-800";
+    return colors[status] || "bg-gray-100 text-gray-800 border-gray-300";
   };
 
   const getStatusLabel = (status) => {
@@ -781,110 +844,230 @@ const CRM = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Carregando CRM...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+      {/* Header */}
+      <div className="flex justify-between items-center bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">CRM - Gestão de Leads</h1>
-          <p className="text-lg text-gray-600">Gerencie seus leads e acompanhe o funil de vendas</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+              <Users className="h-5 w-5 text-white" />
+            </div>
+            CRM - Gestão de Leads
+          </h1>
+          <p className="text-gray-600">Gerencie seus leads com drag & drop ou dropdown</p>
         </div>
-        <Button onClick={() => setShowNewLeadForm(true)}>
+        <Button 
+          onClick={() => setShowNewLeadForm(true)}
+          className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-200"
+        >
           <UserPlus className="h-4 w-4 mr-2" />
           Novo Lead
         </Button>
       </div>
 
+      {/* Novo Lead Form */}
       {showNewLeadForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Novo Lead</CardTitle>
+        <Card className="card-hover bg-white shadow-lg border-0 rounded-2xl overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200">
+            <CardTitle className="text-blue-900 flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Criar Novo Lead
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-6 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="leadName">Nome</Label>
+              <div className="space-y-2">
+                <Label htmlFor="leadName" className="text-sm font-medium text-gray-700">Nome Completo</Label>
                 <Input
                   id="leadName"
-                  placeholder="Nome completo"
+                  placeholder="Ex: João Silva"
                   value={newLead.name}
                   onChange={(e) => setNewLead({...newLead, name: e.target.value})}
+                  className="h-11 rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
-              <div>
-                <Label htmlFor="leadPhone">Telefone</Label>
+              <div className="space-y-2">
+                <Label htmlFor="leadPhone" className="text-sm font-medium text-gray-700">Telefone</Label>
                 <Input
                   id="leadPhone"
                   placeholder="(11) 99999-9999"
                   value={newLead.phone}
                   onChange={(e) => setNewLead({...newLead, phone: e.target.value})}
+                  className="h-11 rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
-              <div>
-                <Label htmlFor="leadEmail">Email (opcional)</Label>
+              <div className="space-y-2">
+                <Label htmlFor="leadEmail" className="text-sm font-medium text-gray-700">Email (opcional)</Label>
                 <Input
                   id="leadEmail"
-                  placeholder="email@exemplo.com"
+                  placeholder="joao@exemplo.com"
                   value={newLead.email}
                   onChange={(e) => setNewLead({...newLead, email: e.target.value})}
+                  className="h-11 rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
             </div>
-            <div className="flex gap-2">
-              <Button onClick={createLead}>Criar Lead</Button>
-              <Button variant="outline" onClick={() => setShowNewLeadForm(false)}>Cancelar</Button>
+            <div className="flex gap-3 pt-4">
+              <Button 
+                onClick={createLead}
+                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+              >
+                ✓ Criar Lead
+              </Button>
+              <Button variant="outline" onClick={() => setShowNewLeadForm(false)}>
+                Cancelar
+              </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Funil de Vendas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* Kanban Board */}
+      <div className="grid grid-cols-1 xl:grid-cols-4 lg:grid-cols-2 gap-6">
         {[
-          { status: 'novo_lead', label: 'Novos Leads', color: 'blue' },
-          { status: 'em_negociacao', label: 'Em Negociação', color: 'yellow' },
-          { status: 'visita_agendada', label: 'Visita Agendada', color: 'purple' },
-          { status: 'fechamento', label: 'Fechamento', color: 'green' }
-        ].map(({ status, label, color }) => (
-          <Card key={status}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-700">{label}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {leads.filter(lead => lead.status === status).map(lead => (
-                <div key={lead.id} className="p-3 bg-gray-50 rounded-lg space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium text-sm">{lead.name}</p>
-                    <Link to={`/chat/${lead.id}`}>
-                      <Button size="sm" variant="ghost">
-                        <MessageSquare className="h-3 w-3" />
-                      </Button>
-                    </Link>
+          { status: 'novo_lead' },
+          { status: 'em_negociacao' },
+          { status: 'visita_agendada' },
+          { status: 'fechamento' }
+        ].map(({ status }) => {
+          const config = getStatusConfig(status);
+          const statusLeads = leads.filter(lead => lead.status === status);
+          
+          return (
+            <div 
+              key={status}
+              className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-md"
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, status)}
+            >
+              {/* Column Header */}
+              <div className={`${config.headerClass} text-white p-4`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{config.icon}</span>
+                    <h3 className="font-semibold text-white">{config.label}</h3>
                   </div>
-                  <p className="text-xs text-gray-500">{lead.phone}</p>
-                  <Select onValueChange={(newStatus) => updateLeadStatus(lead.id, newStatus)}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Alterar status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="novo_lead">Novo Lead</SelectItem>
-                      <SelectItem value="em_negociacao">Em Negociação</SelectItem>
-                      <SelectItem value="visita_agendada">Visita Agendada</SelectItem>
-                      <SelectItem value="fechamento">Fechamento</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Badge className="bg-white/20 text-white border-white/30 px-2 py-1 text-xs font-medium">
+                    {config.count}
+                  </Badge>
                 </div>
-              ))}
-              {leads.filter(lead => lead.status === status).length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-4">Nenhum lead neste estágio</p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+              </div>
+
+              {/* Cards Container */}
+              <div className={`${config.bgClass} p-4 min-h-[400px] space-y-3`}>
+                {statusLeads.map(lead => (
+                  <div
+                    key={lead.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, lead)}
+                    onDragEnd={handleDragEnd}
+                    className="group bg-white rounded-xl p-4 shadow-sm border border-gray-200 cursor-move hover:shadow-md hover:scale-[1.02] transition-all duration-200 hover:border-gray-300"
+                  >
+                    {/* Lead Header */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-gray-900 truncate text-sm mb-1">
+                          {lead.name}
+                        </h4>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <Phone className="h-3 w-3" />
+                          <span className="truncate">{lead.phone}</span>
+                        </div>
+                        {lead.email && (
+                          <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                            <Mail className="h-3 w-3" />
+                            <span className="truncate">{lead.email}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Actions */}
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <Link to={`/chat/${lead.id}`}>
+                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-blue-100 hover:text-blue-600">
+                            <MessageSquare className="h-3 w-3" />
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+
+                    {/* Status Badge */}
+                    <div className="flex items-center justify-between">
+                      <Badge className={`${getStatusColor(lead.status)} text-xs px-2 py-1 border`}>
+                        {getStatusLabel(lead.status)}
+                      </Badge>
+                      
+                      {/* Last Interaction */}
+                      <span className="text-xs text-gray-400">
+                        {new Date(lead.last_interaction).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
+
+                    {/* Dropdown Alternative */}
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <Select onValueChange={(newStatus) => updateLeadStatus(lead.id, newStatus)}>
+                        <SelectTrigger className="h-8 text-xs border-gray-300 rounded-lg hover:border-gray-400 transition-colors">
+                          <SelectValue placeholder="🔄 Alterar status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="novo_lead">👋 Novo Lead</SelectItem>
+                          <SelectItem value="em_negociacao">💬 Em Negociação</SelectItem>
+                          <SelectItem value="visita_agendada">📅 Visita Agendada</SelectItem>
+                          <SelectItem value="fechamento">✅ Fechamento</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Empty State */}
+                {statusLeads.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                      <span className="text-2xl opacity-50">{config.icon}</span>
+                    </div>
+                    <p className="text-sm font-medium">Nenhum lead aqui</p>
+                    <p className="text-xs mt-1">Arraste um lead para esta coluna</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Stats Summary */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <BarChart3 className="h-5 w-5 text-gray-700" />
+          Resumo do Funil
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { status: 'novo_lead', color: 'blue' },
+            { status: 'em_negociacao', color: 'amber' },
+            { status: 'visita_agendada', color: 'purple' },
+            { status: 'fechamento', color: 'green' }
+          ].map(({ status, color }) => {
+            const config = getStatusConfig(status);
+            return (
+              <div key={status} className="text-center p-4 bg-gray-50 rounded-xl">
+                <div className="text-2xl mb-1">{config.icon}</div>
+                <div className="text-2xl font-bold text-gray-900">{config.count}</div>
+                <div className="text-xs text-gray-500">{config.label}</div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
