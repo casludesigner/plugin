@@ -3210,7 +3210,7 @@ function App() {
     <div className="min-h-screen bg-gray-50">
       <BrowserRouter>
         <ModernHeader />
-        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <main className="max-w-7xl mx-auto pt-20 py-6 sm:px-6 lg:px-8">
           <div className="px-4 py-6 sm:px-0">
             <Routes>
               <Route path="/" element={<Dashboard />} />
