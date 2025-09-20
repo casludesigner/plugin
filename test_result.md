@@ -203,8 +203,10 @@
   run_ui: false
 
 ## test_plan:
-  current_focus: []
-  stuck_tasks: []
+  current_focus:
+    - "ResizeObserver Error Fix"
+  stuck_tasks:
+    - "ResizeObserver Error Fix"
   test_all: false
   test_priority: "high_first"
 
