@@ -181,6 +181,21 @@
         - agent: "testing"
         - comment: "✅ TESTADO COM SUCESSO - Todas as funcionalidades existentes preservadas! Botão 'Novo Lead' funcional com formulário completo (nome, telefone, email). Dropdowns de status disponíveis em cada card para mudança manual. Botões de chat preservados para integração com WhatsApp. Badges de status coloridos funcionando. Responsividade testada e funcionando em desktop (1920x1080), tablet (768x1024) e mobile (390x844). Integração com backend confirmada com chamadas API GET /api/leads."
 
+  - task: "ResizeObserver Error Fix"
+    implemented: true
+    working: false
+    file: "/app/frontend/src/App.js"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "main"
+        - comment: "Implementada correção para suprimir erros ResizeObserver no CRM Kanban (linhas 24-50 do App.js). Correção usa console.error override e window error listeners para suprimir mensagens 'ResizeObserver loop completed with undelivered notifications'."
+        - working: false
+        - agent: "testing"
+        - comment: "❌ CORREÇÃO PARCIALMENTE FALHOU - Teste específico revelou que apesar da implementação da correção (linhas 24-50), o erro ResizeObserver AINDA aparece como overlay vermelho na interface do usuário. A correção suprime erros do console do navegador (✅ nenhum erro detectado no console durante 20+ segundos de testes), mas NÃO elimina completamente o problema visual. CRM funciona perfeitamente (✅ 11 cards, ✅ 4 colunas, ✅ drag-drop, ✅ responsivo), mas erro permanece visível. NECESSÁRIO: Investigar origem específica no componente Kanban e implementar correção mais robusta."
+
 ## metadata:
   created_by: "main_agent"
   version: "1.0"
