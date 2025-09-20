@@ -3136,6 +3136,7 @@ function App() {
               <Route path="/agent" element={<AgentConfig />} />
               <Route path="/crm" element={<CRM />} />
               <Route path="/live-chat" element={<LiveChat />} />
+              <Route path="/automation" element={<CommercialAutomation />} />
               <Route path="/whatsapp-config" element={<WhatsAppConfig />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/chat/:leadId" element={<ChatWrapper />} />
