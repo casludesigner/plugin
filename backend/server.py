@@ -1970,6 +1970,294 @@ async def clear_messages():
         logging.error(f"Error clearing messages: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# =================== PROPERTY MANAGEMENT ENDPOINTS ===================
+
+@api_router.get("/properties", response_model=List[Property])
+async def get_properties(company_id: Optional[str] = None):
+    """Get all properties, optionally filtered by company"""
+    try:
+        query = {}
+        if company_id:
+            query["company_id"] = company_id
+            
+        properties = await db.properties.find(query).to_list(length=None)
+        return [Property(**prop) for prop in properties]
+    except Exception as e:
+        logging.error(f"Error fetching properties: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/properties", response_model=Property)
+async def create_property(property_data: PropertyCreate, company_id: str):
+    """Create a new property"""
+    try:
+        property_dict = property_data.dict()
+        property_dict["company_id"] = company_id
+        property_obj = Property(**property_dict)
+        
+        await db.properties.insert_one(property_obj.dict())
+        logging.info(f"Property created: {property_obj.title}")
+        return property_obj
+    except Exception as e:
+        logging.error(f"Error creating property: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# =================== DOCUMENT PROCESSING ENDPOINTS ===================
+
+# Create uploads directory
+UPLOAD_DIR = Path("/app/backend/uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+async def process_pdf_document(file_path: str) -> str:
+    """Extract text from PDF document"""
+    try:
+        with open(file_path, 'rb') as file:
+            pdf_reader = PyPDF2.PdfReader(file)
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text() + "\n"
+        return text
+    except Exception as e:
+        logging.error(f"Error processing PDF: {str(e)}")
+        return ""
+
+async def process_excel_document(file_path: str) -> str:
+    """Extract data from Excel/CSV document"""
+    try:
+        # Try Excel first
+        try:
+            df = pd.read_excel(file_path)
+        except:
+            # Fallback to CSV
+            df = pd.read_csv(file_path)
+        
+        # Convert to text representation
+        return df.to_string()
+    except Exception as e:
+        logging.error(f"Error processing Excel/CSV: {str(e)}")
+        return ""
+
+async def extract_properties_with_ai(text_content: str, file_type: str) -> List[ExtractedPropertyData]:
+    """Use AI to extract property data from document text"""
+    try:
+        # Initialize LLM Chat with Gemini (supports file processing)
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"property_extraction_{uuid.uuid4()}",
+            system_message="""Você é um especialista em extração de dados imobiliários. 
+            Analise o texto fornecido e extraia informações sobre imóveis.
+            
+            Para cada imóvel encontrado, retorne um JSON válido com os seguintes campos:
+            - title: Título/nome do imóvel
+            - description: Descrição detalhada
+            - address: Endereço completo
+            - neighborhood: Bairro
+            - city: Cidade
+            - state: Estado
+            - zip_code: CEP
+            - property_type: Tipo (casa, apartamento, terreno, comercial, etc)
+            - price: Preço em números (sem símbolos)
+            - price_type: "venda" ou "aluguel"
+            - area_total: Área total em m²
+            - area_built: Área construída em m²
+            - bedrooms: Número de quartos
+            - bathrooms: Número de banheiros
+            - parking_spaces: Vagas de garagem
+            - features: Lista de características extras
+            - confidence_score: Sua confiança na extração (0.0 a 1.0)
+            
+            Retorne APENAS um array JSON válido com os imóveis encontrados.
+            Se não encontrar imóveis, retorne um array vazio []."""
+        ).with_model("gemini", "gemini-2.0-flash")
+        
+        # Create user message
+        user_message = UserMessage(
+            text=f"Analise este documento de tipo {file_type} e extraia informações de imóveis:\n\n{text_content[:8000]}"  # Limit text size
+        )
+        
+        # Get AI response
+        response = await chat.send_message(user_message)
+        
+        # Parse JSON response
+        try:
+            # Clean the response (remove markdown if present)
+            clean_response = response.strip()
+            if clean_response.startswith("```json"):
+                clean_response = clean_response.replace("```json", "").replace("```", "").strip()
+            
+            properties_data = json.loads(clean_response)
+            
+            # Convert to ExtractedPropertyData objects
+            extracted_properties = []
+            for prop_data in properties_data:
+                try:
+                    extracted_property = ExtractedPropertyData(**prop_data)
+                    extracted_properties.append(extracted_property)
+                except Exception as validation_error:
+                    logging.warning(f"Property validation error: {validation_error}")
+                    continue
+            
+            return extracted_properties
+            
+        except json.JSONDecodeError as e:
+            logging.error(f"JSON parsing error: {e}, Response: {response}")
+            return []
+            
+    except Exception as e:
+        logging.error(f"AI extraction error: {str(e)}")
+        return []
+
+@api_router.post("/documents/upload", response_model=DocumentProcessingResponse)
+async def upload_and_process_document(
+    file: UploadFile = File(...),
+    company_id: str = Form(...)
+):
+    """Upload and process a document to extract property data"""
+    import time
+    start_time = time.time()
+    
+    try:
+        # Validate file type
+        allowed_types = {
+            "application/pdf": "PDF",
+            "application/vnd.ms-excel": "Excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "Excel",
+            "text/csv": "CSV"
+        }
+        
+        if file.content_type not in allowed_types:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Tipo de arquivo não suportado. Aceito: PDF, Excel, CSV"
+            )
+        
+        # Generate unique filename
+        file_extension = Path(file.filename).suffix
+        unique_filename = f"{uuid.uuid4()}{file_extension}"
+        file_path = UPLOAD_DIR / unique_filename
+        
+        # Save uploaded file
+        async with aiofiles.open(file_path, 'wb') as f:
+            content = await file.read()
+            await f.write(content)
+        
+        # Create document record
+        document = DocumentUpload(
+            company_id=company_id,
+            filename=unique_filename,
+            original_name=file.filename,
+            file_type=allowed_types[file.content_type],
+            file_size=len(content),
+            file_path=str(file_path),
+            status="processing"
+        )
+        
+        # Save to database
+        await db.document_uploads.insert_one(document.dict())
+        
+        # Process document based on type
+        text_content = ""
+        if file.content_type == "application/pdf":
+            text_content = await process_pdf_document(str(file_path))
+        else:  # Excel or CSV
+            text_content = await process_excel_document(str(file_path))
+        
+        if not text_content:
+            # Update document status
+            await db.document_uploads.update_one(
+                {"id": document.id},
+                {"$set": {"status": "error", "error_message": "Não foi possível extrair texto do documento"}}
+            )
+            raise HTTPException(status_code=400, detail="Não foi possível processar o documento")
+        
+        # Extract properties using AI
+        extracted_properties = await extract_properties_with_ai(text_content, document.file_type)
+        
+        # Update document status
+        await db.document_uploads.update_one(
+            {"id": document.id},
+            {"$set": {
+                "status": "completed",
+                "properties_extracted": len(extracted_properties),
+                "processed_at": datetime.now(timezone.utc),
+                "processing_details": f"Extracted {len(extracted_properties)} properties"
+            }}
+        )
+        
+        processing_time = time.time() - start_time
+        
+        return DocumentProcessingResponse(
+            document_id=document.id,
+            status="completed",
+            properties_found=len(extracted_properties),
+            extracted_properties=extracted_properties,
+            processing_time=processing_time,
+            message=f"Processamento concluído! Encontrados {len(extracted_properties)} imóveis."
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Document processing error: {str(e)}")
+        
+        # Update document status if it exists
+        try:
+            await db.document_uploads.update_one(
+                {"id": document.id},
+                {"$set": {"status": "error", "error_message": str(e)}}
+            )
+        except:
+            pass
+            
+        raise HTTPException(status_code=500, detail=f"Erro no processamento: {str(e)}")
+
+@api_router.post("/documents/{document_id}/approve-properties")
+async def approve_extracted_properties(
+    document_id: str,
+    approved_properties: List[ExtractedPropertyData]
+):
+    """Approve and save extracted properties as real properties"""
+    try:
+        # Get document info
+        document = await db.document_uploads.find_one({"id": document_id})
+        if not document:
+            raise HTTPException(status_code=404, detail="Documento não encontrado")
+        
+        saved_properties = []
+        
+        for prop_data in approved_properties:
+            # Convert to Property and save
+            property_dict = prop_data.dict()
+            property_dict["company_id"] = document["company_id"]
+            property_dict["source"] = "document_upload"
+            property_dict.pop("confidence_score", None)  # Remove confidence score
+            
+            property_obj = Property(**property_dict)
+            await db.properties.insert_one(property_obj.dict())
+            saved_properties.append(property_obj)
+        
+        return {
+            "message": f"{len(saved_properties)} imóveis salvos com sucesso",
+            "saved_properties": len(saved_properties)
+        }
+        
+    except Exception as e:
+        logging.error(f"Error approving properties: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/documents", response_model=List[DocumentUpload])
+async def get_documents(company_id: Optional[str] = None):
+    """Get document upload history"""
+    try:
+        query = {}
+        if company_id:
+            query["company_id"] = company_id
+            
+        documents = await db.document_uploads.find(query).sort("created_at", -1).to_list(length=None)
+        return [DocumentUpload(**doc) for doc in documents]
+    except Exception as e:
+        logging.error(f"Error fetching documents: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.post("/leads/fix-phone-numbers")
 async def fix_phone_numbers():
     """
