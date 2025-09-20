@@ -105,95 +105,29 @@
 ## user_problem_statement: Testar o novo sistema CRM Kanban com funcionalidade drag-and-drop recém-implementado usando react-dnd
 
 ## backend:
-  - task: "WhatsApp Status API"
+  - task: "CRM Kanban Backend API"
     implemented: true
-    working: true
+    working: "NA"
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         - working: "NA"
-        - agent: "testing"
-        - comment: "Testando GET /api/whatsapp/status conforme solicitação específica do usuário"
-        - working: true
-        - agent: "testing"
-        - comment: "WHATSAPP STATUS FUNCIONANDO ✅ - Endpoint GET /api/whatsapp/status retorna dados corretos: connected=true, profile_name='Lucas Alves', phone='554187717657', connection_status='open'. WhatsApp está conectado e operacional via Evolution API."
+        - agent: "main"
+        - comment: "CRM Kanban recém-implementado com react-dnd. Precisa testar se endpoints de leads existentes ainda funcionam com nova interface: GET /api/leads, POST /api/leads, PUT /api/leads/{lead_id}, etc."
 
-  - task: "Leads Management API"
+  - task: "Lead Status Update API"
     implemented: true
-    working: true
+    working: "NA"
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         - working: "NA"
-        - agent: "testing"
-        - comment: "Testando GET /api/leads para verificar telefones dos leads conforme solicitado"
-        - working: true
-        - agent: "testing"
-        - comment: "LEADS API FUNCIONANDO ✅ - Endpoint GET /api/leads retorna 11 leads com estrutura correta. PROBLEMA IDENTIFICADO: 9/11 leads têm telefones sem código do país (formato 11987654321 ao invés de 5511987654321). Estrutura dos dados está correta, mas formatação de telefones precisa ser corrigida para envio WhatsApp."
-
-  - task: "WhatsApp Send Message API"
-    implemented: true
-    working: false
-    file: "/app/backend/server.py"
-    stuck_count: 1
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: "NA"
-        - agent: "testing"
-        - comment: "Testando POST /api/whatsapp/send-message conforme solicitação específica"
-        - working: false
-        - agent: "testing"
-        - comment: "WHATSAPP SEND PARCIALMENTE FUNCIONAL ❌ - API responde corretamente mas Evolution API retorna erro 400 'number does not exist' para números mal formatados. Logs mostram: 'Error sending WhatsApp message: HTTP 400 - number does not exist'. Problema: telefones dos leads não têm código do país (55) e alguns podem não existir no WhatsApp. Sistema tenta formato original como fallback mas ainda falha."
-
-  - task: "Chat Message API"
-    implemented: true
-    working: true
-    file: "/app/backend/server.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: "NA"
-        - agent: "testing"
-        - comment: "Testando POST /api/chat/message para salvar mensagens no banco"
-        - working: true
-        - agent: "testing"
-        - comment: "CHAT MESSAGE FUNCIONANDO ✅ - Endpoint POST /api/chat/message salva mensagens corretamente no MongoDB. Estrutura completa com id, lead_id, sender, message, timestamp. Mensagens são persistidas e podem ser recuperadas via GET /api/chat/{lead_id}."
-
-  - task: "AI Response API"
-    implemented: true
-    working: true
-    file: "/app/backend/server.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: "NA"
-        - agent: "testing"
-        - comment: "Testando POST /api/chat/ai-response/{lead_id} para IA responder automaticamente"
-        - working: true
-        - agent: "testing"
-        - comment: "AI RESPONSE FUNCIONANDO ✅ - Endpoint POST /api/chat/ai-response/{lead_id} gera respostas automáticas via Gemini 2.5 Pro. IA responde contextualmente usando dados do lead e histórico de conversa. Respostas são salvas automaticamente no banco como mensagens do 'agent'. Sistema de IA totalmente operacional."
-
-  - task: "Phone Number Validation"
-    implemented: true
-    working: false
-    file: "/app/backend/server.py"
-    stuck_count: 1
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: "NA"
-        - agent: "testing"
-        - comment: "Testando validação e formatação de números de telefone para WhatsApp"
-        - working: false
-        - agent: "testing"
-        - comment: "VALIDAÇÃO DE TELEFONE COM PROBLEMAS ❌ - Função format_phone_number() existe e funciona corretamente (testada com 6 formatos diferentes), MAS os leads no banco têm números mal formatados. 9/11 leads precisam de correção: '11987654321' deveria ser '5511987654321'. Validação funciona mas dados existentes estão incorretos, causando falhas no envio WhatsApp."
+        - agent: "main"
+        - comment: "Funcionalidade de atualizar status dos leads via drag-and-drop precisa ser testada. Endpoint PUT /api/leads/{lead_id} deve suportar mudanças de status entre colunas Kanban."
 
 ## frontend:
   - task: "Super Admin Panel Frontend"
