@@ -89,47 +89,47 @@ const Dashboard = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-blue-700">Total de Leads</CardTitle>
-            <Users className="h-4 w-4 text-blue-600" />
+        <Card className="card-hover gradient-card bg-gradient-to-br from-blue-500 to-blue-600 border-0 text-white p-6">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="card-title text-sm font-medium text-white/90">Total de Leads</CardTitle>
+            <Users className="card-icon h-5 w-5 text-white/80" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-900">{stats.total_leads}</div>
-            <p className="text-xs text-blue-600">leads cadastrados</p>
+          <CardContent className="pt-0">
+            <div className="card-value stats-number text-3xl font-bold text-white">{stats.total_leads}</div>
+            <p className="card-description text-xs text-white/75 mt-1">leads cadastrados</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Conversas Hoje</CardTitle>
-            <MessageSquare className="h-4 w-4 text-green-600" />
+        <Card className="card-hover gradient-card bg-gradient-to-br from-green-500 to-green-600 border-0 text-white p-6">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="card-title text-sm font-medium text-white/90">Conversas Hoje</CardTitle>
+            <MessageSquare className="card-icon h-5 w-5 text-white/80" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-900">{stats.conversations_today}</div>
-            <p className="text-xs text-green-600">mensagens trocadas</p>
+          <CardContent className="pt-0">
+            <div className="card-value stats-number text-3xl font-bold text-white">{stats.conversations_today}</div>
+            <p className="card-description text-xs text-white/75 mt-1">mensagens trocadas</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-purple-700">Taxa de Resposta</CardTitle>
-            <TrendingUp className="h-4 w-4 text-purple-600" />
+        <Card className="card-hover gradient-card bg-gradient-to-br from-purple-500 to-purple-600 border-0 text-white p-6">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="card-title text-sm font-medium text-white/90">Taxa de Resposta</CardTitle>
+            <TrendingUp className="card-icon h-5 w-5 text-white/80" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-900">{stats.response_rate}%</div>
-            <p className="text-xs text-purple-600">respostas automáticas</p>
+          <CardContent className="pt-0">
+            <div className="card-value stats-number text-3xl font-bold text-white">{stats.response_rate}%</div>
+            <p className="card-description text-xs text-white/75 mt-1">respostas automáticas</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-orange-700">Em Negociação</CardTitle>
-            <BarChart3 className="h-4 w-4 text-orange-600" />
+        <Card className="card-hover gradient-card bg-gradient-to-br from-orange-500 to-orange-600 border-0 text-white p-6">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="card-title text-sm font-medium text-white/90">Em Negociação</CardTitle>
+            <BarChart3 className="card-icon h-5 w-5 text-white/80" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-900">{stats.leads_by_status.em_negociacao || 0}</div>
-            <p className="text-xs text-orange-600">leads ativos</p>
+          <CardContent className="pt-0">
+            <div className="card-value stats-number text-3xl font-bold text-white">{stats.leads_by_status.em_negociacao || 0}</div>
+            <p className="card-description text-xs text-white/75 mt-1">leads ativos</p>
           </CardContent>
         </Card>
       </div>
