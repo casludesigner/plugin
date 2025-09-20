@@ -135,18 +135,18 @@ const Dashboard = () => {
       </div>
 
       {/* Recent Leads */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
+      <Card className="card-hover bg-white border-gray-200 p-6">
+        <CardHeader className="pb-4">
+          <CardTitle className="card-title flex items-center gap-2 text-lg font-semibold text-gray-900">
+            <Users className="card-icon h-5 w-5 text-gray-700" />
             Leads Recentes
           </CardTitle>
-          <CardDescription>Últimos leads cadastrados no sistema</CardDescription>
+          <CardDescription className="card-description text-gray-600">Últimos leads cadastrados no sistema</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {leads.slice(0, 5).map(lead => (
-              <div key={lead.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+              <div key={lead.id} className="card-hover flex items-center justify-between p-4 border border-gray-200 rounded-xl bg-gray-50/50 hover:bg-white hover:border-gray-300 transition-all duration-200">
                 <div className="flex items-center gap-4">
                   <Avatar>
                     <AvatarFallback className="bg-blue-100 text-blue-700">
