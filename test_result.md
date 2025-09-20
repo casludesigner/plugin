@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-## user_problem_statement: Testar especificamente o SISTEMA DE MENSAGENS do PropBot CRM que está falhando
+## user_problem_statement: Testar o novo sistema CRM Kanban com funcionalidade drag-and-drop recém-implementado usando react-dnd
 
 ## backend:
   - task: "WhatsApp Status API"
