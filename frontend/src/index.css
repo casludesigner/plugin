@@ -2,6 +2,100 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom animations for dashboard cards */
+@layer utilities {
+  /* Gradient animation keyframes */
+  @keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  
+  /* Modern card hover animation */
+  .card-hover {
+    @apply transition-all duration-300 ease-in-out;
+    @apply hover:shadow-lg hover:shadow-black/10;
+    @apply focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2;
+    @apply rounded-xl;
+  }
+  
+  /* Desktop hover effects */
+  @media (min-width: 768px) {
+    .card-hover:hover {
+      transform: translateY(-4px) scale(1.02);
+    }
+  }
+  
+  /* Mobile hover effects (shadow only) */
+  @media (max-width: 767px) {
+    .card-hover:hover {
+      transform: none;
+    }
+  }
+  
+  /* Gradient card specific animations */
+  .gradient-card {
+    background-size: 200% 200%;
+    @apply transition-all duration-300 ease-in-out;
+  }
+  
+  .gradient-card:hover {
+    animation: gradient-shift 3s ease infinite;
+    @apply text-white/95;
+  }
+  
+  /* Text contrast enhancement on hover */
+  .gradient-card:hover .card-title {
+    @apply text-white font-semibold;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+  
+  .gradient-card:hover .card-value {
+    @apply text-white font-bold;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+  
+  .gradient-card:hover .card-description {
+    @apply text-white/90;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  }
+  
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .card-hover,
+    .gradient-card {
+      transition: none;
+      animation: none;
+    }
+    
+    .card-hover:hover {
+      transform: none;
+    }
+    
+    .gradient-card:hover {
+      animation: none;
+    }
+  }
+  
+  /* Icon hover animation */
+  .card-icon {
+    @apply transition-transform duration-200 ease-in-out;
+  }
+  
+  .card-hover:hover .card-icon {
+    @apply scale-110;
+  }
+  
+  /* Stats number animation */
+  .stats-number {
+    @apply transition-all duration-200 ease-in-out;
+  }
+  
+  .card-hover:hover .stats-number {
+    @apply scale-105;
+  }
+}
+
 body {
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
