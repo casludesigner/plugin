@@ -1,0 +1,170 @@
+[
+  {
+    "test": "API Health Check",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "API funcionando: PropBot CRM API is running",
+    "timestamp": "2025-09-20T18:52:52.045477",
+    "response_data": null
+  },
+  {
+    "test": "GET /api/leads",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Lista de leads obtida com 8 leads",
+    "timestamp": "2025-09-20T18:52:52.059346",
+    "response_data": null
+  },
+  {
+    "test": "Estrutura do lead",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Estrutura correta com status Kanban: novo_lead",
+    "timestamp": "2025-09-20T18:52:52.059384",
+    "response_data": null
+  },
+  {
+    "test": "POST /api/leads",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Lead criado com ID: d9548612-73bf-415d-a609-0004f256f627, status: novo_lead",
+    "timestamp": "2025-09-20T18:52:52.113234",
+    "response_data": null
+  },
+  {
+    "test": "Criar Lead Adicional 1",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Lead João Pereira criado com ID: 35687615-3b79-4b4e-a231-a1d43546d0d3",
+    "timestamp": "2025-09-20T18:52:52.224467",
+    "response_data": null
+  },
+  {
+    "test": "Criar Lead Adicional 2",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Lead Ana Costa criado com ID: 985b9422-8a59-4536-8f05-ffda6d07e291",
+    "timestamp": "2025-09-20T18:52:52.363748",
+    "response_data": null
+  },
+  {
+    "test": "Criar Lead Adicional 3",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Lead Carlos Oliveira criado com ID: 02e68251-3a26-4eb0-ab22-82ae57d0faf0",
+    "timestamp": "2025-09-20T18:52:52.373685",
+    "response_data": null
+  },
+  {
+    "test": "GET /api/leads/{id}",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Lead obtido: Maria Silva Santos - Status: novo_lead",
+    "timestamp": "2025-09-20T18:52:52.441115",
+    "response_data": null
+  },
+  {
+    "test": "Status Kanban: novo_lead",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Status alterado e persistido para: novo_lead",
+    "timestamp": "2025-09-20T18:52:52.512641",
+    "response_data": null
+  },
+  {
+    "test": "Status Kanban: em_negociacao",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Status alterado e persistido para: em_negociacao",
+    "timestamp": "2025-09-20T18:52:52.534678",
+    "response_data": null
+  },
+  {
+    "test": "Status Kanban: visita_agendada",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Status alterado e persistido para: visita_agendada",
+    "timestamp": "2025-09-20T18:52:52.596852",
+    "response_data": null
+  },
+  {
+    "test": "Status Kanban: fechamento",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Status alterado e persistido para: fechamento",
+    "timestamp": "2025-09-20T18:52:52.657392",
+    "response_data": null
+  },
+  {
+    "test": "Transição novo_lead → em_negociacao",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Transição realizada com sucesso",
+    "timestamp": "2025-09-20T18:52:52.768420",
+    "response_data": null
+  },
+  {
+    "test": "Transição em_negociacao → visita_agendada",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Transição realizada com sucesso",
+    "timestamp": "2025-09-20T18:52:52.838050",
+    "response_data": null
+  },
+  {
+    "test": "Transição visita_agendada → fechamento",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Transição realizada com sucesso",
+    "timestamp": "2025-09-20T18:52:52.908195",
+    "response_data": null
+  },
+  {
+    "test": "PUT /api/leads/{id}/tags",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Tags atualizadas: ['quente', 'apartamento', 'zona_sul']",
+    "timestamp": "2025-09-20T18:52:52.970090",
+    "response_data": null
+  },
+  {
+    "test": "PUT /api/leads/{id}/notes",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Observações atualizadas com sucesso",
+    "timestamp": "2025-09-20T18:52:52.989086",
+    "response_data": null
+  },
+  {
+    "test": "Validação Status Inválido",
+    "status": "❌ FALHOU",
+    "success": false,
+    "details": "API aceita status inválidos - problema para Kanban",
+    "timestamp": "2025-09-20T18:52:53.049799",
+    "response_data": null
+  },
+  {
+    "test": "Lead Inexistente - GET",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Retornou 404 para lead inexistente",
+    "timestamp": "2025-09-20T18:52:53.099751",
+    "response_data": null
+  },
+  {
+    "test": "Lead Inexistente - PUT Status",
+    "status": "❌ FALHOU",
+    "success": false,
+    "details": "Deveria retornar 404/500, mas retornou 200",
+    "timestamp": "2025-09-20T18:52:53.110541",
+    "response_data": null
+  },
+  {
+    "test": "GET /api/reports",
+    "status": "✅ PASSOU",
+    "success": true,
+    "details": "Relatórios obtidos com dados Kanban: {'novo_lead': 2, 'em_negociacao': 3, 'visita_agendada': 1, 'fechamento': 5}",
+    "timestamp": "2025-09-20T18:52:53.126589",
+    "response_data": null
+  }
+]
