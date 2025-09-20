@@ -3053,73 +3053,154 @@ const Reports = () => {
   );
 };
 
-// Navigation Component
-const Navigation = () => {
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  
-  // Check if user is super admin (you can implement proper auth later)
+// Modern Header Navigation Component
+const ModernHeader = () => {
+  const location = useLocation();
+  const [activeItem, setActiveItem] = useState(location.pathname);
+
   useEffect(() => {
-    // For now, check if URL contains super-admin or set a flag
-    const urlParams = new URLSearchParams(window.location.search);
-    setIsSuperAdmin(urlParams.get('super') === 'true');
-  }, []);
+    setActiveItem(location.pathname);
+  }, [location.pathname]);
+
+  const navItems = [
+    { path: '/', label: 'Dashboard', icon: '📊' },
+    { path: '/agent', label: 'IA', icon: '🤖' },
+    { path: '/crm', label: 'CRM', icon: '👥' },
+    { path: '/live-chat', label: 'Chat ao Vivo', icon: '💬' },
+    { path: '/automation', label: 'Automação', icon: '⚡' },
+    { path: '/whatsapp-config', label: 'WhatsApp', icon: '📱' },
+    { path: '/reports', label: 'Relatórios', icon: '📈' },
+    { path: '/super-admin', label: 'Super Admin', icon: '👑' }
+  ];
+
+  const handleItemClick = (path) => {
+    setActiveItem(path);
+  };
 
   return (
-    <nav className="bg-white border-b border-gray-200">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200/80 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center">
-            <Link to="/" className="flex items-center">
-              <Bot className="h-8 w-8 text-blue-600 mr-2" />
-              <span className="text-xl font-bold text-gray-900">PropBot CRM</span>
-            </Link>
+        <div className="flex justify-between items-center h-16">
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl flex items-center justify-center shadow-lg">
+              <span className="text-white font-bold text-lg">P</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="font-bold text-xl text-gray-900 leading-tight">PropBot</span>
+              <span className="text-xs text-gray-500 font-medium leading-tight">CRM</span>
+            </div>
           </div>
-          <div className="flex items-center space-x-8">
-            {!isSuperAdmin ? (
-              // Menu normal (atual)
-              <>
-                <Link to="/" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                  Dashboard
-                </Link>
-                <Link to="/agent" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                  Configurar IA
-                </Link>
-                <Link to="/crm" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                  CRM
-                </Link>
-                <Link to="/live-chat" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                  Chat ao Vivo
-                </Link>
-                <Link to="/automation" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                  Automação
-                </Link>
-                <Link to="/whatsapp-config" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                  WhatsApp
-                </Link>
-                <Link to="/reports" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                  Relatórios
-                </Link>
-                {/* Link secreto para super admin */}
-                <Link to="/super-admin" className="text-gray-400 hover:text-gray-600 px-1 py-2 text-xs">
-                  •••
-                </Link>
-              </>
-            ) : (
-              // Menu super admin
-              <>
-                <Link to="/super-admin" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                  <Crown className="h-4 w-4 inline mr-1" />
-                  Super Admin
-                </Link>
-                <Link to="/" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                  Voltar ao Sistema
-                </Link>
-              </>
-            )}
+
+          {/* Navigation */}
+          <nav className="hidden md:flex items-center space-x-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={() => handleItemClick(item.path)}
+                className={`
+                  relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ease-in-out
+                  flex items-center gap-2 select-none cursor-pointer group overflow-hidden
+                  ${activeItem === item.path 
+                    ? 'bg-black text-white shadow-lg transform scale-105' 
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100/80'
+                  }
+                `}
+                style={{
+                  transform: activeItem === item.path ? 'scale(1.05)' : 'scale(1)',
+                  transformOrigin: 'center'
+                }}
+              >
+                {/* Background hover effect */}
+                <div className={`
+                  absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 opacity-0 
+                  transition-opacity duration-300 ease-in-out -z-10
+                  ${activeItem !== item.path ? 'group-hover:opacity-100' : ''}
+                `} />
+                
+                {/* Active item background */}
+                <div className={`
+                  absolute inset-0 bg-gradient-to-r from-gray-900 to-black opacity-0 
+                  transition-opacity duration-300 ease-in-out -z-10
+                  ${activeItem === item.path ? 'opacity-100' : ''}
+                `} />
+
+                {/* Icon */}
+                <span className={`
+                  text-base transition-transform duration-300 ease-in-out
+                  ${activeItem === item.path ? 'transform scale-110' : 'group-hover:transform group-hover:scale-110'}
+                `}>
+                  {item.icon}
+                </span>
+
+                {/* Label */}
+                <span className={`
+                  transition-all duration-300 ease-in-out relative z-10
+                  ${activeItem === item.path ? 'font-semibold' : 'group-hover:font-semibold'}
+                `}>
+                  {item.label}
+                </span>
+
+                {/* Active indicator */}
+                <div className={`
+                  absolute bottom-0 left-1/2 transform -translate-x-1/2 h-0.5 bg-white transition-all duration-300 ease-in-out
+                  ${activeItem === item.path ? 'w-full opacity-100' : 'w-0 opacity-0'}
+                `} />
+
+                {/* Ripple effect on click */}
+                <div className="absolute inset-0 overflow-hidden rounded-lg">
+                  <div className={`
+                    absolute inset-0 bg-white/20 transform scale-0 rounded-full transition-transform duration-500 ease-out
+                    ${activeItem === item.path ? 'animate-ping' : ''}
+                  `} />
+                </div>
+              </Link>
+            ))}
+          </nav>
+
+          {/* Mobile menu button */}
+          <div className="md:hidden">
+            <button className="p-2 rounded-lg text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-200">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
-    </nav>
+
+      {/* Mobile Navigation */}
+      <div className="md:hidden border-t border-gray-200/80 bg-white/95 backdrop-blur-sm">
+        <div className="px-4 py-3 space-y-1">
+          {navItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              onClick={() => handleItemClick(item.path)}
+              className={`
+                block px-4 py-3 rounded-lg text-sm font-medium transition-all duration-300 ease-in-out
+                flex items-center gap-3 relative overflow-hidden
+                ${activeItem === item.path 
+                  ? 'bg-black text-white shadow-lg' 
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100/80'
+                }
+              `}
+            >
+              {/* Mobile background effects */}
+              <div className={`
+                absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 opacity-0 
+                transition-opacity duration-300 ease-in-out
+                ${activeItem !== item.path ? 'hover:opacity-100' : ''}
+              `} />
+              
+              <span className="text-lg relative z-10">{item.icon}</span>
+              <span className="relative z-10">{item.label}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </header>
   );
 };
 
