@@ -174,11 +174,11 @@
 
 ## test_plan:
   current_focus:
-    - "WhatsApp Send Message API"
-    - "Phone Number Validation"
-  stuck_tasks:
-    - "WhatsApp Send Message API"
-    - "Phone Number Validation"
+    - "CRM Kanban Backend API"
+    - "Lead Status Update API"
+    - "CRM Kanban Interface"
+    - "React DND Drag and Drop"
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
