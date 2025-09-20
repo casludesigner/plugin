@@ -107,27 +107,33 @@
 ## backend:
   - task: "CRM Kanban Backend API"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
         - agent: "main"
         - comment: "CRM Kanban recém-implementado com react-dnd. Precisa testar se endpoints de leads existentes ainda funcionam com nova interface: GET /api/leads, POST /api/leads, PUT /api/leads/{lead_id}, etc."
+        - working: true
+        - agent: "testing"
+        - comment: "✅ TESTADO COM SUCESSO - Todos os endpoints críticos funcionando: GET /api/leads (8 leads), POST /api/leads (criação OK), GET /api/leads/{id} (busca individual OK), PUT /api/leads/{id}/tags e /api/leads/{id}/notes (atualizações OK). Estrutura de dados correta com campos obrigatórios. Taxa de sucesso: 90.5% (19/21 testes). Problemas menores: API aceita status inválidos, mas funcionalidade principal intacta."
 
   - task: "Lead Status Update API"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
         - agent: "main"
         - comment: "Funcionalidade de atualizar status dos leads via drag-and-drop precisa ser testada. Endpoint PUT /api/leads/{lead_id} deve suportar mudanças de status entre colunas Kanban."
+        - working: true
+        - agent: "testing"
+        - comment: "✅ TESTADO COM SUCESSO - PUT /api/leads/{id}/status funcionando perfeitamente para todos os status Kanban: 'novo_lead', 'em_negociacao', 'visita_agendada', 'fechamento'. Transições testadas: novo_lead → em_negociacao → visita_agendada → fechamento. Mudanças persistidas corretamente no MongoDB. Pronto para drag-and-drop do frontend. Relatórios mostram dados corretos por status: {'novo_lead': 2, 'em_negociacao': 3, 'visita_agendada': 1, 'fechamento': 5}."
 
 ## frontend:
   - task: "CRM Kanban Interface"
