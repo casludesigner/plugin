@@ -890,7 +890,7 @@ async def send_to_n8n_agent(request_body: dict):
                     "timestamp": msg.get("timestamp")
                 } for msg in recent_messages
             ],
-            "webhook_url": "https://propbot-mvp.preview.emergentagent.com/api/n8n/webhook"
+            "webhook_url": "https://omnichannelcrm-1.preview.emergentagent.com/api/n8n/webhook"
         }
         
         # Send to n8n webhook (you'll configure this URL)

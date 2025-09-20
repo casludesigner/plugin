@@ -9,7 +9,7 @@ import sys
 from datetime import datetime
 
 # Configuração da API
-API_BASE_URL = "https://whatsapp-crm-13.preview.emergentagent.com/api"
+API_BASE_URL = "https://omnichannelcrm-1.preview.emergentagent.com/api"
 
 class SuperAdminAPITester:
     def __init__(self):

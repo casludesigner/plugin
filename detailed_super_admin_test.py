@@ -6,7 +6,7 @@ Teste detalhado adicional dos endpoints Super Admin
 import requests
 import json
 
-API_BASE_URL = "https://whatsapp-crm-13.preview.emergentagent.com/api"
+API_BASE_URL = "https://omnichannelcrm-1.preview.emergentagent.com/api"
 
 def test_validation_details():
     """Testa validações específicas em detalhes"""

@@ -1893,7 +1893,7 @@ const WhatsAppConfig = () => {
             <div>
               <Label className="text-sm font-medium text-gray-700">Webhook URL</Label>
               <p className="text-sm text-gray-900 font-mono bg-gray-50 p-2 rounded">
-                https://propbot-mvp.preview.emergentagent.com/api/whatsapp/webhook
+                https://omnichannelcrm-1.preview.emergentagent.com/api/whatsapp/webhook
               </p>
             </div>
             <div>

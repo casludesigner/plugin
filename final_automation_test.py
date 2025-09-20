@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 import time
 
 # Configuração da API
-API_BASE_URL = "https://whatsapp-crm-13.preview.emergentagent.com/api"
+API_BASE_URL = "https://omnichannelcrm-1.preview.emergentagent.com/api"
 
 class FinalAutomationTester:
     def __init__(self):
